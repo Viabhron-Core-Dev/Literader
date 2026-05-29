@@ -1,0 +1,6 @@
+{
+  "name": "LiteReader",
+  "description": "Lightweight floating EPUB reader for low-end devices",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
