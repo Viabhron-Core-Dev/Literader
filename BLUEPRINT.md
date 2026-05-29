@@ -37,6 +37,7 @@
 - [x] Implement highly aggressive state saving (scroll position, current chapter) on scroll stop and fold.
 - [x] Add basic UI chrome (progress bar, chapter nav) visible only on tap.
 - [x] Configure GitHub Actions Workflow for Debug APK export.
+- [x] Fix GitHub Actions Keystore issue (generate debug.keystore in CI).
 
 ### Phase 5: Advanced Features
 - [ ] Implement Library Search (by title/author).
