@@ -52,6 +52,7 @@ class LibraryRepository(private val epubDao: EpubDao, private val context: Conte
                 epubDao.insertBook(finalBook.copy(totalChapters = totalChapters, isParsed = true))
             } else {
                 Log.e("LibraryRepository", "Failed to parse EPUB into chapters")
+                com.example.data.LogDropper.log(context, "Failed to parse EPUB into chapters: $title")
             }
             finalBook
         } catch (e: Exception) {

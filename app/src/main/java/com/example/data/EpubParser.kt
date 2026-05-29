@@ -91,6 +91,43 @@ object EpubParser {
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            LogDropper.log(context, "Exception in parseEpub (trying fallback): ${e.message}\n${e.stackTraceToString()}")
+
+            // Fallback reading
+            try {
+                var fallbackCount = 0
+                val bookDir = File(context.filesDir, "book_$bookId")
+                ZipFile(epubFilePath).use { zip ->
+                    val textHtmls = zip.entries().asSequence()
+                        .filter { it.name.endsWith(".html", true) || it.name.endsWith(".xhtml", true) || it.name.endsWith(".htm", true) }
+                        .sortedBy { it.name }
+                        .toList()
+                    
+                    for ((index, entry) in textHtmls.withIndex()) {
+                        val rawHtml = zip.getInputStream(entry).bufferedReader().readText()
+                        val bodyStart = rawHtml.indexOf("<body", ignoreCase = true)
+                        val bodyStr = if (bodyStart != -1) rawHtml.substring(bodyStart) else rawHtml
+                        
+                        val textContent = bodyStr.replace(Regex("<p.*?>", RegexOption.IGNORE_CASE), "")
+                            .replace(Regex("</p>|<br\\s*/?>|</div>", RegexOption.IGNORE_CASE), "\n")
+                            .replace(Regex("<[^>]+>"), "")
+                            .replace("&nbsp;", " ")
+                            .replace(Regex("(?m)^[ \\t]*\\r?\\n"), "") // remove empty lines
+                            .replace(Regex("\\n{3,}"), "\n\n") // max two newlines
+                            .trim()
+
+                        val chapterFile = File(bookDir, "chapter_$index.txt")
+                        chapterFile.writeText(textContent)
+                        fallbackCount++
+                    }
+                }
+                if (fallbackCount > 0) {
+                    LogDropper.log(context, "Fallback parsed $fallbackCount chapters successfully.")
+                    return@withContext fallbackCount
+                }
+            } catch (fallbackEx: Exception) {
+                LogDropper.log(context, "Fallback also failed: ${fallbackEx.message}")
+            }
             return@withContext -1
         }
     }

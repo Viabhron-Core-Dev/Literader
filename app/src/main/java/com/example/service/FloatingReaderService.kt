@@ -52,7 +52,6 @@ class FloatingReaderService : Service() {
     // UI Refs
     private lateinit var tvWindowTitle: TextView
     private lateinit var btnFold: ImageView
-    private lateinit var tvTitle: TextView
     private lateinit var tvContent: TextView
     private lateinit var scrollView: ScrollView
     private lateinit var topDragBar: View
@@ -292,8 +291,8 @@ class FloatingReaderService : Service() {
                 loadChaptersIntoCache(currentChapterIndex)
                 renderCurrentChapter(book.lastReadProgress)
             } else {
-                tvTitle.text = book?.title ?: "Unknown Book"
-                tvContent.text = if (book?.isParsed != true) "Book is still parsing..." else "Book not found."
+                tvWindowTitle.text = book?.title ?: "Unknown Book"
+                tvContent.text = if (book?.isParsed != true) "Book is still parsing or failed..." else "Book not found."
             }
         }
     }

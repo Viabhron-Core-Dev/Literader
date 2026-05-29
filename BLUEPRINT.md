@@ -40,6 +40,10 @@
 - [x] Fix GitHub Actions Keystore issue (generate debug.keystore in CI).
 
 ### Phase 5: Advanced Features
+- [x] Un-initialize property exception crash fix for Floating Reader.
+- [x] Implemented Fallback EPUB text parser for generic ePub files.
+- [x] Added `LogDropper` utility to dump debug logs explicitly into the OS Downloads folder.
+- [x] Added a custom, minimalistic Book & V icon (Grey/Purple).
 - [ ] Implement Library Search (by title/author).
 - [ ] Implement In-EPUB text search.
 - [ ] Add Settings (Font size: S/M/L, Theme: Dark/Light, Chapter List, Bookmarks).
