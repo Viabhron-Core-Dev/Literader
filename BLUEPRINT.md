@@ -36,6 +36,7 @@
 - [x] Build the Chapter Management engine (loading current ± 5 chapters into memory dynamically).
 - [x] Implement highly aggressive state saving (scroll position, current chapter) on scroll stop and fold.
 - [x] Add basic UI chrome (progress bar, chapter nav) visible only on tap.
+- [x] Configure GitHub Actions Workflow for Debug APK export.
 
 ### Phase 5: Advanced Features
 - [ ] Implement Library Search (by title/author).
