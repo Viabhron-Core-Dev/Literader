@@ -50,12 +50,24 @@ class FloatingReaderService : Service() {
     private var currentChapterIndex: Int = 0
     
     // UI Refs
+    private lateinit var tvWindowTitle: TextView
+    private lateinit var btnFold: ImageView
     private lateinit var tvTitle: TextView
     private lateinit var tvContent: TextView
     private lateinit var scrollView: ScrollView
-    private lateinit var bottomControls: LinearLayout
-    private lateinit var btnPrev: Button
-    private lateinit var btnNext: Button
+    private lateinit var topDragBar: View
+    private lateinit var toolbarContainer: View
+    
+    // Bottom minimal controls
+    private lateinit var btnPrevQuick: TextView
+    private lateinit var btnNextQuick: TextView
+    private lateinit var tvProgress: TextView
+
+    // Moonreader controls
+    private lateinit var tvChapterTitle: TextView
+    private lateinit var btnLibrary: Button
+    private lateinit var btnChapters: Button
+    private lateinit var btnExit: Button
     
     // Chapter sliding window (current +- 5 chapters) buffer
     private val chapterCache = mutableMapOf<Int, String>()
@@ -98,6 +110,62 @@ class FloatingReaderService : Service() {
         setupFloatingView()
     }
 
+    private fun createLongPressDragListener(): View.OnTouchListener {
+        return object : View.OnTouchListener {
+            private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+            private var isLongPressed = false
+            private var downX = 0f
+            private var downY = 0f
+
+            private val longPressRunnable = Runnable {
+                isLongPressed = true
+            }
+
+            override fun onTouch(view: View, event: MotionEvent): Boolean {
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        initialX = layoutParams.x
+                        initialY = layoutParams.y
+                        initialTouchX = event.rawX
+                        initialTouchY = event.rawY
+                        downX = event.rawX
+                        downY = event.rawY
+                        isLongPressed = false
+                        handler.postDelayed(longPressRunnable, 300)
+                        return true
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        if (!isLongPressed) {
+                            val dx = Math.abs(event.rawX - downX)
+                            val dy = Math.abs(event.rawY - downY)
+                            if (dx > 20 || dy > 20) {
+                                handler.removeCallbacks(longPressRunnable)
+                            }
+                        } else {
+                            layoutParams.x = initialX + (event.rawX - initialTouchX).toInt()
+                            layoutParams.y = initialY + (event.rawY - initialTouchY).toInt()
+                            windowManager.updateViewLayout(floatingView, layoutParams)
+                        }
+                        return true
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        handler.removeCallbacks(longPressRunnable)
+                        if (!isLongPressed) {
+                            val dx = Math.abs(event.rawX - downX)
+                            val dy = Math.abs(event.rawY - downY)
+                            if (dx < 20 && dy < 20) {
+                                view.performClick() // Normal click
+                            }
+                        }
+                        isLongPressed = false
+                        return true
+                    }
+                }
+                return false
+            }
+        }
+    }
+
     private fun setupFloatingView() {
         floatingView = LayoutInflater.from(this).inflate(R.layout.layout_floating_reader, null)
 
@@ -119,92 +187,71 @@ class FloatingReaderService : Service() {
 
         windowManager.addView(floatingView, layoutParams)
 
-        tvTitle = floatingView.findViewById(R.id.tv_title)
+        tvWindowTitle = floatingView.findViewById(R.id.tv_window_title)
+        btnFold = floatingView.findViewById(R.id.btn_fold)
         tvContent = floatingView.findViewById(R.id.tv_content)
         scrollView = floatingView.findViewById(R.id.scroll_view)
-        bottomControls = floatingView.findViewById(R.id.bottom_controls)
-        btnPrev = floatingView.findViewById(R.id.btn_prev)
-        btnNext = floatingView.findViewById(R.id.btn_next)
+        topDragBar = floatingView.findViewById(R.id.top_drag_bar)
+        toolbarContainer = floatingView.findViewById(R.id.toolbar_container)
+        
+        btnPrevQuick = floatingView.findViewById(R.id.btn_prev_quick)
+        btnNextQuick = floatingView.findViewById(R.id.btn_next_quick)
+        tvProgress = floatingView.findViewById(R.id.tv_progress)
+        
+        tvChapterTitle = floatingView.findViewById(R.id.tv_chapter_title)
+        btnLibrary = floatingView.findViewById(R.id.btn_library)
+        btnChapters = floatingView.findViewById(R.id.btn_chapters)
+        btnExit = floatingView.findViewById(R.id.btn_exit)
         
         tvContent.typeface = Typeface.SERIF
 
         // Setup folded state toggle
         val bubbleIcon = floatingView.findViewById<ImageView>(R.id.bubble_icon)
-        val titleBar = floatingView.findViewById<View>(R.id.title_bar)
-        val btnClose = floatingView.findViewById<ImageView>(R.id.btn_close)
         val resizeHandle = floatingView.findViewById<View>(R.id.resize_handle)
 
-        // Handle touch outside to fold
-        floatingView.setOnTouchListener { _, event ->
-            if (!isFolded && event.action == MotionEvent.ACTION_OUTSIDE) {
-                setFolded(true)
-                return@setOnTouchListener true
-            }
-            false
+        // Moonreader style: Toggle toolbar on content tap
+        tvContent.setOnClickListener {
+            val isVisible = toolbarContainer.visibility == View.VISIBLE
+            toolbarContainer.visibility = if (isVisible) View.GONE else View.VISIBLE
         }
 
-        // Tap bubble to open
-        bubbleIcon.setOnClickListener {
-            setFolded(false)
-        }
+        // Tap bubble to open (with long press logic mapping)
+        bubbleIcon.setOnTouchListener(createLongPressDragListener())
+        bubbleIcon.setOnClickListener { setFolded(false) }
         
         // Tap close to fold
-        btnClose.setOnClickListener {
+        btnFold.setOnClickListener {
             saveCurrentPosition()
             setFolded(true)
         }
 
-        // Tap content to toggle bottom controls
-        tvContent.setOnClickListener {
-            val isControlsVisible = bottomControls.visibility == View.VISIBLE
-            bottomControls.visibility = if (isControlsVisible) View.GONE else View.VISIBLE
+        btnExit.setOnClickListener {
+            saveCurrentPosition()
+            stopSelf()
         }
 
-        btnPrev.setOnClickListener { navigateToChapter(currentChapterIndex - 1) }
-        btnNext.setOnClickListener { navigateToChapter(currentChapterIndex + 1) }
+        btnLibrary.setOnClickListener {
+            saveCurrentPosition()
+            stopSelf()
+            val intent = Intent(this, com.example.MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+        }
+
+        btnPrevQuick.setOnClickListener { navigateToChapter(currentChapterIndex - 1) }
+        btnNextQuick.setOnClickListener { navigateToChapter(currentChapterIndex + 1) }
 
         // Track scrolling to save position
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            scrollView.setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
-                // Basic debounce or immediate save if lightweight enough
+            scrollView.setOnScrollChangeListener { _, _, scrollY, _, _ ->
                 currentBook?.let { book ->
-                    // Note: doing this on every pixel scroll might be slightly heavy, but PRD asks to save constantly
-                    // we'll update local variables, and save to DB occasionally or on fold.
                     bookProgressCache[book.id] = scrollY
                 }
             }
         }
 
-        // Drag bubble or title bar
-        val dragListener = View.OnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    initialX = layoutParams.x
-                    initialY = layoutParams.y
-                    initialTouchX = event.rawX
-                    initialTouchY = event.rawY
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    layoutParams.x = initialX + (event.rawX - initialTouchX).toInt()
-                    layoutParams.y = initialY + (event.rawY - initialTouchY).toInt()
-                    windowManager.updateViewLayout(floatingView, layoutParams)
-                    true
-                }
-                MotionEvent.ACTION_UP -> {
-                    val xDiff = Math.abs(event.rawX - initialTouchX)
-                    val yDiff = Math.abs(event.rawY - initialTouchY)
-                    if (xDiff < 10 && yDiff < 10) {
-                        view.performClick()
-                    }
-                    true
-                }
-                else -> false
-            }
-        }
-
-        bubbleIcon.setOnTouchListener(dragListener)
-        titleBar.setOnTouchListener(dragListener)
+        // Drag title bar with long press
+        topDragBar.setOnTouchListener(createLongPressDragListener())
 
         // Resize handle
         resizeHandle.setOnTouchListener { _, event ->
@@ -272,11 +319,11 @@ class FloatingReaderService : Service() {
 
     private fun renderCurrentChapter(savedScrollY: Int = 0) {
         val book = currentBook ?: return
-        tvTitle.text = "${book.title} (Ch ${currentChapterIndex + 1}/${book.totalChapters})"
+        tvWindowTitle.text = "${book.title} (Ch ${currentChapterIndex + 1}/${book.totalChapters})"
+        tvChapterTitle.text = "Chapter ${currentChapterIndex + 1}"
         tvContent.text = chapterCache[currentChapterIndex] ?: "Chapter content not loaded."
         
-        btnPrev.isEnabled = currentChapterIndex > 0
-        btnNext.isEnabled = currentChapterIndex < book.totalChapters - 1
+        tvProgress.text = "${((currentChapterIndex + 1) * 100) / max(1, book.totalChapters)}%"
         
         // Restore scroll position after layout
         scrollView.post {
@@ -328,12 +375,12 @@ class FloatingReaderService : Service() {
         } else {
             floatingView.findViewById<View>(R.id.bubble_icon).visibility = View.GONE
             floatingView.findViewById<View>(R.id.window_container).visibility = View.VISIBLE
+            toolbarContainer.visibility = View.GONE
             
             layoutParams.width = savedWindowWidth
             layoutParams.height = savedWindowHeight
             
             layoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
-                 WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
                  WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
                  
             windowManager.updateViewLayout(floatingView, layoutParams)

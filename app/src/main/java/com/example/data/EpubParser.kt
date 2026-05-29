@@ -67,7 +67,16 @@ object EpubParser {
                     
                     val textContent = if (chapterEntry != null) {
                         val rawHtml = zip.getInputStream(chapterEntry).bufferedReader().readText()
-                        Html.fromHtml(rawHtml, Html.FROM_HTML_MODE_LEGACY).toString().trim()
+                        val bodyStart = rawHtml.indexOf("<body", ignoreCase = true)
+                        val bodyStr = if (bodyStart != -1) rawHtml.substring(bodyStart) else rawHtml
+                        
+                        bodyStr.replace(Regex("<p.*?>", RegexOption.IGNORE_CASE), "")
+                            .replace(Regex("</p>|<br\\s*/?>|</div>", RegexOption.IGNORE_CASE), "\n")
+                            .replace(Regex("<[^>]+>"), "")
+                            .replace("&nbsp;", " ")
+                            .replace(Regex("(?m)^[ \\t]*\\r?\\n"), "") // remove empty lines
+                            .replace(Regex("\\n{3,}"), "\n\n") // max two newlines
+                            .trim()
                     } else {
                         "Chapter content missing: $chapterHref"
                     }
