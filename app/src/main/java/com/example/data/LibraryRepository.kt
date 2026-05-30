@@ -3,73 +3,62 @@ package com.example.data
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 
-class LibraryRepository(private val epubDao: EpubDao, private val context: Context) {
-    val allBooks: Flow<List<EpubBook>> = epubDao.getAllBooks()
-    val recentBooks: Flow<List<EpubBook>> = epubDao.getRecentBooks()
+class LibraryRepository(private val context: Context) {
+    private val dao = AppDatabase.getDatabase(context).epubDao()
 
-    fun searchBooks(query: String): Flow<List<EpubBook>> = epubDao.searchBooks(query)
+    suspend fun getBooks() = dao.getAllBooks()
 
-    suspend fun importEpub(uri: Uri): EpubBook? = withContext(Dispatchers.IO) {
+    suspend fun getBook(id: Int) = dao.getBookById(id)
+
+    suspend fun updateBook(book: EpubBook) = dao.updateBook(book)
+    
+    suspend fun deleteBook(book: EpubBook) {
+        dao.deleteBook(book)
+        val bookDir = File(context.filesDir, "book_${book.id}")
+        bookDir.deleteRecursively()
+        val origFile = File(book.filePath)
+        if (origFile.exists()) origFile.delete()
+    }
+
+    suspend fun importBook(uri: Uri): EpubBook? = withContext(Dispatchers.IO) {
+        val title = getFileName(uri) ?: "Unknown Book"
         try {
-            var title = "Unknown Book"
-            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                    if (nameIndex != -1) {
-                        val fallbackTitle = cursor.getString(nameIndex)
-                        title = fallbackTitle.replace(".epub", "", ignoreCase = true)
-                    }
-                }
+            val inputStream = context.contentResolver.openInputStream(uri) ?: return@withContext null
+            val destFile = File(context.filesDir, "imported_${System.currentTimeMillis()}.epub")
+            FileOutputStream(destFile).use { output ->
+                inputStream.copyTo(output)
             }
             
-            val fileName = "book_${System.currentTimeMillis()}.epub"
-            val file = File(context.filesDir, fileName)
-            
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                FileOutputStream(file).use { output ->
-                    input.copyTo(output)
-                }
-            }
-            
-            val book = EpubBook(
-                title = title,
-                filePath = file.absolutePath,
-                isParsed = false
-            )
-            val id = epubDao.insertBook(book)
-            val finalBook = book.copy(id = id.toInt())
+            val book = EpubBook(title = title, filePath = destFile.absolutePath)
+            val id = dao.insertBook(book).toInt()
+            val finalBook = book.copy(id = id)
             
             // Trigger parsing
-            val totalChapters = EpubParser.parseEpub(context, finalBook.id, finalBook.filePath)
+            val totalChapters = EpubParser.parseEpubToText(context, id, destFile)
             if (totalChapters > 0) {
-                epubDao.insertBook(finalBook.copy(totalChapters = totalChapters, isParsed = true))
-            } else {
-                Log.e("LibraryRepository", "Failed to parse EPUB into chapters")
-                com.example.data.LogDropper.log(context, "Failed to parse EPUB into chapters: $title")
+                dao.updateBook(finalBook.copy(totalChapters = totalChapters, isParsed = true))
             }
-            finalBook
+            return@withContext finalBook
         } catch (e: Exception) {
             e.printStackTrace()
-            null
+            return@withContext null
         }
     }
 
-    suspend fun deleteBook(book: EpubBook) = withContext(Dispatchers.IO) {
-        val file = File(book.filePath)
-        if (file.exists()) {
-            file.delete()
+    private fun getFileName(uri: Uri): String? {
+        var name: String? = null
+        val cursor = context.contentResolver.query(uri, null, null, null, null)
+        cursor?.use {
+            if (it.moveToFirst()) {
+                val idx = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (idx != -1) name = it.getString(idx)
+            }
         }
-        val bookDir = File(context.filesDir, "book_${book.id}")
-        if (bookDir.exists()) {
-            bookDir.deleteRecursively()
-        }
-        epubDao.deleteBook(book)
+        return name?.removeSuffix(".epub")
     }
 }

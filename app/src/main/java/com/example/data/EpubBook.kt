@@ -1,17 +1,34 @@
 package com.example.data
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
+import androidx.room.*
 
-@Entity(tableName = "epub_books")
+@Entity(tableName = "epubs")
 data class EpubBook(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val title: String,
-    val filePath: String, // Internal storage path
-    val addedTime: Long = System.currentTimeMillis(),
-    val lastReadTime: Long = 0L,
-    val lastReadChapter: Int = 0,
-    val lastReadProgress: Int = 0,
+    val filePath: String,
+    val isParsed: Boolean = false,
     val totalChapters: Int = 0,
-    val isParsed: Boolean = false
+    val lastReadChapter: Int = 0,
+    val lastReadScrollY: Int = 0,
+    val addedTimestamp: Long = System.currentTimeMillis(),
+    val lastOpenedTimestamp: Long = System.currentTimeMillis()
 )
+
+@Dao
+interface EpubDao {
+    @Query("SELECT * FROM epubs ORDER BY lastOpenedTimestamp DESC")
+    suspend fun getAllBooks(): List<EpubBook>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBook(book: EpubBook): Long
+
+    @Update
+    suspend fun updateBook(book: EpubBook)
+
+    @Query("SELECT * FROM epubs WHERE id = :id LIMIT 1")
+    suspend fun getBookById(id: Int): EpubBook?
+    
+    @Delete
+    suspend fun deleteBook(book: EpubBook)
+}

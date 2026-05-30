@@ -1,25 +1,24 @@
 package com.example.service
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.Service
+import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.graphics.PixelFormat
-import android.graphics.Typeface
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
+import android.speech.tts.TextToSpeech
 import android.view.*
-import android.widget.Button
-import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.ScrollView
-import android.widget.TextView
-import androidx.core.app.NotificationCompat
+import android.widget.*
 import com.example.R
 import com.example.data.AppDatabase
 import com.example.data.EpubBook
+import com.example.util.AppLogger
 import kotlinx.coroutines.*
 import java.io.File
+import java.util.Locale
 import kotlin.math.max
 
 class FloatingReaderService : Service() {
@@ -27,122 +26,262 @@ class FloatingReaderService : Service() {
     private lateinit var floatingView: View
     private lateinit var layoutParams: WindowManager.LayoutParams
     
-    private var isFolded = true
-    
-    // Default window dimensions
-    private var savedWindowWidth = 800
-    private var savedWindowHeight = 1200
-    
-    // Dragging state
-    private var initialX: Int = 0
-    private var initialY: Int = 0
-    private var initialTouchX: Float = 0f
-    private var initialTouchY: Float = 0f
-
-    // Resize state
-    private var initialWidth: Int = 0
-    private var initialHeight: Int = 0
-
-    // Reader state
-    private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
-    private lateinit var database: AppDatabase
-    private var currentBook: EpubBook? = null
-    private var currentChapterIndex: Int = 0
-    
     // UI Refs
     private lateinit var tvWindowTitle: TextView
-    private lateinit var btnFold: ImageView
     private lateinit var tvContent: TextView
     private lateinit var scrollView: ScrollView
-    private lateinit var topDragBar: View
-    private lateinit var toolbarContainer: View
-    
-    // Bottom minimal controls
-    private lateinit var btnPrevQuick: TextView
-    private lateinit var btnNextQuick: TextView
-    private lateinit var tvProgress: TextView
-
-    // Moonreader controls
     private lateinit var tvChapterTitle: TextView
-    private lateinit var btnLibrary: Button
-    private lateinit var btnChapters: Button
-    private lateinit var btnExit: Button
-    
-    // Chapter sliding window (current +- 5 chapters) buffer
-    private val chapterCache = mutableMapOf<Int, String>()
+    private lateinit var tvProgress: TextView
+    private lateinit var toolbarContainer: View
+    private lateinit var bubbleIcon: ImageView
+    private lateinit var windowContainer: View
 
-    override fun onBind(intent: Intent): IBinder? = null
+    private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
+    private var currentBook: EpubBook? = null
+    private var currentChapterIndex: Int = 0
+    private var chapterContent: String = ""
+
+    private var isFolded = true
+    private var savedWindowWidth = 800
+    private var savedWindowHeight = 1200
+    private var initialX = 0
+    private var initialY = 0
+    private var initialTouchX = 0f
+    private var initialTouchY = 0f
+
+    private lateinit var prefs: SharedPreferences
+    private lateinit var tts: TextToSpeech
+    private var isTtsReady = false
+    private var isSpeaking = false
+    private lateinit var btnTts: ImageView
+
+    // Auto Scroll State
+    private var isAutoScrolling = false
+    private val scrollHandler = Handler(Looper.getMainLooper())
+    private val scrollRunnable = object : Runnable {
+        override fun run() {
+            if (isAutoScrolling) {
+                scrollView.smoothScrollBy(0, 2)
+                scrollHandler.postDelayed(this, 30) // light speed modifier
+            }
+        }
+    }
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        prefs = getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
+        savedWindowWidth = prefs.getInt("win_w", 800)
+        savedWindowHeight = prefs.getInt("win_h", 1200)
+        
+        tts = TextToSpeech(this) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                tts.language = Locale.US
+                isTtsReady = true
+            }
+        }
+        
+        windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+        setupFloatingView()
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val bookId = intent?.getIntExtra("BOOK_ID", -1) ?: -1
         if (bookId != -1) {
             loadBook(bookId)
-            setFolded(false)
         }
         return START_NOT_STICKY
     }
 
-    override fun onCreate() {
-        super.onCreate()
-        windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+    private fun setupFloatingView() {
+        floatingView = LayoutInflater.from(this).inflate(R.layout.layout_floating_reader, null)
 
-        val channelId = "floating_reader_channel"
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "Floating Reader Service",
-                NotificationManager.IMPORTANCE_LOW
-            )
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
+        val windowType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        } else {
+            WindowManager.LayoutParams.TYPE_PHONE
         }
 
-        val notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("LiteReader")
-            .setContentText("Floating reader is active")
-            .setSmallIcon(android.R.drawable.ic_menu_agenda)
-            .build()
-            
-        startForeground(1, notification)
+        layoutParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            windowType,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+            PixelFormat.TRANSLUCENT
+        )
+        layoutParams.gravity = Gravity.TOP or Gravity.START
+        layoutParams.x = prefs.getInt("win_x", 100)
+        layoutParams.y = prefs.getInt("win_y", 100)
 
-        database = AppDatabase.getDatabase(this)
-        setupFloatingView()
+        windowManager.addView(floatingView, layoutParams)
+
+        initViews()
+        setupListeners()
+        setFolded(true)
     }
+
+    private fun initViews() {
+        tvWindowTitle = floatingView.findViewById(R.id.tv_window_title)
+        tvContent = floatingView.findViewById(R.id.tv_content)
+        scrollView = floatingView.findViewById(R.id.scroll_view)
+        tvChapterTitle = floatingView.findViewById(R.id.tv_chapter_title)
+        tvProgress = floatingView.findViewById(R.id.tv_progress)
+        toolbarContainer = floatingView.findViewById(R.id.toolbar_container)
+        bubbleIcon = floatingView.findViewById(R.id.bubble_icon)
+        windowContainer = floatingView.findViewById(R.id.window_container)
+        btnTts = floatingView.findViewById(R.id.btn_tts)
+    }
+
+    private fun setupListeners() {
+        val topDragBar = floatingView.findViewById<View>(R.id.top_drag_bar)
+        val resizeHandle = floatingView.findViewById<View>(R.id.resize_handle)
+        
+        // Tap outside to fold
+        floatingView.setOnTouchListener { _, event ->
+            if (!isFolded && event.action == MotionEvent.ACTION_OUTSIDE) {
+                setFolded(true)
+                return@setOnTouchListener true
+            }
+            false
+        }
+
+        // Long press movement for bubble and top bar
+        val dragListener = createLongPressDragListener()
+        bubbleIcon.setOnTouchListener(dragListener)
+        topDragBar.setOnTouchListener(dragListener)
+
+        bubbleIcon.setOnClickListener { setFolded(false) }
+
+        floatingView.findViewById<View>(R.id.btn_exit).setOnClickListener {
+            saveCurrentPosition()
+            stopSelf()
+        }
+
+        // Tap content to toggle Moonreader toolbar
+        tvContent.setOnClickListener {
+            val isVisible = toolbarContainer.visibility == View.VISIBLE
+            toolbarContainer.visibility = if (isVisible) View.GONE else View.VISIBLE
+        }
+
+        // Resize bottom right
+        resizeHandle.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    initialX = layoutParams.width
+                    initialY = layoutParams.height
+                    initialTouchX = event.rawX
+                    initialTouchY = event.rawY
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val newWidth = initialX + (event.rawX - initialTouchX).toInt()
+                    val newHeight = initialY + (event.rawY - initialTouchY).toInt()
+                    layoutParams.width = max(400, newWidth)
+                    layoutParams.height = max(600, newHeight)
+                    savedWindowWidth = layoutParams.width
+                    savedWindowHeight = layoutParams.height
+                    prefs.edit()
+                        .putInt("win_w", savedWindowWidth)
+                        .putInt("win_h", savedWindowHeight)
+                        .apply()
+                    windowManager.updateViewLayout(floatingView, layoutParams)
+                    true
+                }
+                else -> false
+            }
+        }
+
+        // Toolbar Buttons
+        floatingView.findViewById<View>(R.id.btn_prev).setOnClickListener { navigateChapter(-1) }
+        floatingView.findViewById<View>(R.id.btn_next).setOnClickListener { navigateChapter(1) }
+        floatingView.findViewById<View>(R.id.btn_library).setOnClickListener {
+            saveCurrentPosition()
+            stopSelf()
+            val intent = Intent(this@FloatingReaderService, com.example.MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+            try { startActivity(intent) } catch (e: Exception) { AppLogger.d("Service", "Failed to start library: ${e.message}") }
+        }
+        floatingView.findViewById<View>(R.id.btn_auto_scroll).setOnClickListener {
+            isAutoScrolling = !isAutoScrolling
+            if (isAutoScrolling) {
+                scrollHandler.post(scrollRunnable)
+            } else {
+                scrollHandler.removeCallbacks(scrollRunnable)
+            }
+        }
+        floatingView.findViewById<View>(R.id.btn_search).setOnClickListener {
+            Toast.makeText(this, "Search coming soon (Lightweight)", Toast.LENGTH_SHORT).show()
+        }
+        floatingView.findViewById<View>(R.id.btn_settings).setOnClickListener {
+            try {
+                val f = AppLogger.export(this)
+                val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.provider", f)
+                val i = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                startActivity(Intent.createChooser(i, "Export Logs").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            } catch (e: Exception) {
+                // If FileProvider isn't perfectly set up in AndroidManifest yet, fallback to Toast
+                AppLogger.d("Settings", "Export failed: ${e.message}")
+                Toast.makeText(this, "Logs saved to Downloads folder", Toast.LENGTH_LONG).show()
+                AppLogger.export(this)
+            }
+        }
+        
+        btnTts.setOnClickListener {
+            toggleTts()
+        }
+
+        // Track scrolling for progress saving
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            scrollView.setOnScrollChangeListener { _, _, scrollY, _, _ ->
+                currentBook?.let { book ->
+                    // aggressively local save, DB sync on shutdown
+                    lastKnownScrollY = scrollY
+                }
+            }
+        }
+    }
+
+    private var lastKnownScrollY = 0
 
     private fun createLongPressDragListener(): View.OnTouchListener {
         return object : View.OnTouchListener {
-            private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+            private val handler = Handler(Looper.getMainLooper())
             private var isLongPressed = false
             private var downX = 0f
             private var downY = 0f
-
-            private val longPressRunnable = Runnable {
-                isLongPressed = true
-            }
+            private val longPressRunnable = Runnable { isLongPressed = true }
 
             override fun onTouch(view: View, event: MotionEvent): Boolean {
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
                         initialX = layoutParams.x
                         initialY = layoutParams.y
-                        initialTouchX = event.rawX
-                        initialTouchY = event.rawY
                         downX = event.rawX
                         downY = event.rawY
+                        initialTouchX = event.rawX
+                        initialTouchY = event.rawY
                         isLongPressed = false
                         handler.postDelayed(longPressRunnable, 300)
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
                         if (!isLongPressed) {
-                            val dx = Math.abs(event.rawX - downX)
-                            val dy = Math.abs(event.rawY - downY)
-                            if (dx > 20 || dy > 20) {
+                            if (Math.abs(event.rawX - downX) > 20 || Math.abs(event.rawY - downY) > 20) {
                                 handler.removeCallbacks(longPressRunnable)
                             }
                         } else {
                             layoutParams.x = initialX + (event.rawX - initialTouchX).toInt()
                             layoutParams.y = initialY + (event.rawY - initialTouchY).toInt()
+                            prefs.edit()
+                                .putInt("win_x", layoutParams.x)
+                                .putInt("win_y", layoutParams.y)
+                                .apply()
                             windowManager.updateViewLayout(floatingView, layoutParams)
                         }
                         return true
@@ -150,10 +289,8 @@ class FloatingReaderService : Service() {
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                         handler.removeCallbacks(longPressRunnable)
                         if (!isLongPressed) {
-                            val dx = Math.abs(event.rawX - downX)
-                            val dy = Math.abs(event.rawY - downY)
-                            if (dx < 20 && dy < 20) {
-                                view.performClick() // Normal click
+                            if (Math.abs(event.rawX - downX) < 20 && Math.abs(event.rawY - downY) < 20) {
+                                view.performClick()
                             }
                         }
                         isLongPressed = false
@@ -165,233 +302,124 @@ class FloatingReaderService : Service() {
         }
     }
 
-    private fun setupFloatingView() {
-        floatingView = LayoutInflater.from(this).inflate(R.layout.layout_floating_reader, null)
-
-        layoutParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            } else {
-                WindowManager.LayoutParams.TYPE_PHONE
-            },
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-            PixelFormat.TRANSLUCENT
-        )
-        layoutParams.gravity = Gravity.TOP or Gravity.START
-        layoutParams.x = 100
-        layoutParams.y = 100
-
-        windowManager.addView(floatingView, layoutParams)
-
-        tvWindowTitle = floatingView.findViewById(R.id.tv_window_title)
-        btnFold = floatingView.findViewById(R.id.btn_fold)
-        tvContent = floatingView.findViewById(R.id.tv_content)
-        scrollView = floatingView.findViewById(R.id.scroll_view)
-        topDragBar = floatingView.findViewById(R.id.top_drag_bar)
-        toolbarContainer = floatingView.findViewById(R.id.toolbar_container)
-        
-        btnPrevQuick = floatingView.findViewById(R.id.btn_prev_quick)
-        btnNextQuick = floatingView.findViewById(R.id.btn_next_quick)
-        tvProgress = floatingView.findViewById(R.id.tv_progress)
-        
-        tvChapterTitle = floatingView.findViewById(R.id.tv_chapter_title)
-        btnLibrary = floatingView.findViewById(R.id.btn_library)
-        btnChapters = floatingView.findViewById(R.id.btn_chapters)
-        btnExit = floatingView.findViewById(R.id.btn_exit)
-        
-        tvContent.typeface = Typeface.SERIF
-
-        // Setup folded state toggle
-        val bubbleIcon = floatingView.findViewById<ImageView>(R.id.bubble_icon)
-        val resizeHandle = floatingView.findViewById<View>(R.id.resize_handle)
-
-        // Moonreader style: Toggle toolbar on content tap
-        tvContent.setOnClickListener {
-            val isVisible = toolbarContainer.visibility == View.VISIBLE
-            toolbarContainer.visibility = if (isVisible) View.GONE else View.VISIBLE
-        }
-
-        // Tap bubble to open (with long press logic mapping)
-        bubbleIcon.setOnTouchListener(createLongPressDragListener())
-        bubbleIcon.setOnClickListener { setFolded(false) }
-        
-        // Tap close to fold
-        btnFold.setOnClickListener {
-            saveCurrentPosition()
-            setFolded(true)
-        }
-
-        btnExit.setOnClickListener {
-            saveCurrentPosition()
-            stopSelf()
-        }
-
-        btnLibrary.setOnClickListener {
-            saveCurrentPosition()
-            stopSelf()
-            val intent = Intent(this, com.example.MainActivity::class.java)
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            startActivity(intent)
-        }
-
-        btnPrevQuick.setOnClickListener { navigateToChapter(currentChapterIndex - 1) }
-        btnNextQuick.setOnClickListener { navigateToChapter(currentChapterIndex + 1) }
-
-        // Track scrolling to save position
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            scrollView.setOnScrollChangeListener { _, _, scrollY, _, _ ->
-                currentBook?.let { book ->
-                    bookProgressCache[book.id] = scrollY
-                }
-            }
-        }
-
-        // Drag title bar with long press
-        topDragBar.setOnTouchListener(createLongPressDragListener())
-
-        // Resize handle
-        resizeHandle.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    initialWidth = layoutParams.width
-                    initialHeight = layoutParams.height
-                    initialTouchX = event.rawX
-                    initialTouchY = event.rawY
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val w = initialWidth + (event.rawX - initialTouchX).toInt()
-                    val h = initialHeight + (event.rawY - initialTouchY).toInt()
-                    layoutParams.width = max(400, w)
-                    layoutParams.height = max(400, h)
-                    savedWindowWidth = layoutParams.width
-                    savedWindowHeight = layoutParams.height
-                    windowManager.updateViewLayout(floatingView, layoutParams)
-                    true
-                }
-                else -> false
-            }
-        }
-
-        // Initialize folded
-        setFolded(true)
-    }
-
-    private val bookProgressCache = mutableMapOf<Int, Int>()
-
     private fun loadBook(bookId: Int) {
         serviceScope.launch {
-            val book = withContext(Dispatchers.IO) { database.epubDao().getBookById(bookId) }
-            if (book != null && book.isParsed) {
-                currentBook = book
-                currentChapterIndex = book.lastReadChapter
-                loadChaptersIntoCache(currentChapterIndex)
-                renderCurrentChapter(book.lastReadProgress)
-            } else {
-                tvWindowTitle.text = book?.title ?: "Unknown Book"
-                tvContent.text = if (book?.isParsed != true) "Book is still parsing or failed..." else "Book not found."
+            val db = AppDatabase.getDatabase(this@FloatingReaderService)
+            val fetchedBook = db.epubDao().getBookById(bookId)
+            currentBook = fetchedBook?.copy(lastOpenedTimestamp = System.currentTimeMillis())
+            currentBook?.let {
+                db.epubDao().updateBook(it)
+                currentChapterIndex = it.lastReadChapter
+                loadChapterText()
             }
         }
     }
 
-    private suspend fun loadChaptersIntoCache(centerIdx: Int) = withContext(Dispatchers.IO) {
-        val book = currentBook ?: return@withContext
-        val bookDir = File(filesDir, "book_${book.id}")
-        
-        // Evict far chapters
-        val toKeep = (centerIdx - 5..centerIdx + 5)
-        chapterCache.keys.retainAll(toKeep)
-
-        // Load missing
-        for (i in toKeep) {
-            if (i >= 0 && i < book.totalChapters && !chapterCache.containsKey(i)) {
-                val chapterFile = File(bookDir, "chapter_$i.txt")
-                if (chapterFile.exists()) {
-                    chapterCache[i] = chapterFile.readText()
+    private fun loadChapterText() {
+        val book = currentBook ?: return
+        serviceScope.launch(Dispatchers.IO) {
+            val bookDir = File(filesDir, "book_${book.id}")
+            val chapterFile = File(bookDir, "chapter_$currentChapterIndex.txt")
+            if (chapterFile.exists()) {
+                val text = chapterFile.readText()
+                withContext(Dispatchers.Main) {
+                    chapterContent = text
+                    renderChapter(book.lastReadScrollY)
+                }
+            } else {
+                withContext(Dispatchers.Main) {
+                    chapterContent = "Chapter content not found."
+                    renderChapter(0)
                 }
             }
         }
     }
 
-    private fun renderCurrentChapter(savedScrollY: Int = 0) {
+    private fun renderChapter(scrollY: Int) {
         val book = currentBook ?: return
         tvWindowTitle.text = "${book.title} (Ch ${currentChapterIndex + 1}/${book.totalChapters})"
         tvChapterTitle.text = "Chapter ${currentChapterIndex + 1}"
-        tvContent.text = chapterCache[currentChapterIndex] ?: "Chapter content not loaded."
-        
+        tvContent.text = chapterContent
         tvProgress.text = "${((currentChapterIndex + 1) * 100) / max(1, book.totalChapters)}%"
         
-        // Restore scroll position after layout
         scrollView.post {
-            scrollView.scrollTo(0, savedScrollY)
+            scrollView.scrollTo(0, scrollY)
         }
     }
 
-    private fun navigateToChapter(newIdx: Int) {
-        val book = currentBook ?: return
-        if (newIdx in 0 until book.totalChapters) {
-            saveCurrentPosition() // Save current before switching
-            currentChapterIndex = newIdx
-            tvContent.text = "Loading..."
-            scrollView.scrollTo(0, 0)
-            
-            serviceScope.launch {
-                loadChaptersIntoCache(currentChapterIndex)
-                renderCurrentChapter(0)
-                saveCurrentPosition() // Save new chapter index
+    private fun navigateChapter(offset: Int) {
+        currentBook?.let { book ->
+            val newIndex = currentChapterIndex + offset
+            if (newIndex in 0 until book.totalChapters) {
+                saveCurrentPosition() // save before swap
+                currentChapterIndex = newIndex
+                // aggressively update db memory
+                val updated = book.copy(lastReadChapter = newIndex, lastReadScrollY = 0)
+                currentBook = updated
+                loadChapterText()
             }
         }
     }
 
     private fun saveCurrentPosition() {
-        val book = currentBook ?: return
-        val currentScrollY = bookProgressCache[book.id] ?: scrollView.scrollY
-        val updatedBook = book.copy(
-            lastReadChapter = currentChapterIndex,
-            lastReadProgress = currentScrollY,
-            lastReadTime = System.currentTimeMillis()
-        )
-        currentBook = updatedBook
-        serviceScope.launch(Dispatchers.IO) {
-            database.epubDao().insertBook(updatedBook)
+        currentBook?.let {
+            val updated = it.copy(lastReadChapter = currentChapterIndex, lastReadScrollY = lastKnownScrollY)
+            serviceScope.launch(Dispatchers.IO) {
+                AppDatabase.getDatabase(this@FloatingReaderService).epubDao().updateBook(updated)
+            }
+        }
+    }
+
+    private fun toggleTts() {
+        if (!isTtsReady) {
+            Toast.makeText(this, "TTS not ready", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (isSpeaking) {
+            tts.stop()
+            isSpeaking = false
+            btnTts.setImageResource(android.R.drawable.ic_media_play)
+        } else {
+            val chunks = chapterContent.chunked(3000)
+            for (chunk in chunks) {
+                tts.speak(chunk, TextToSpeech.QUEUE_ADD, null, null)
+            }
+            isSpeaking = true
+            btnTts.setImageResource(android.R.drawable.ic_media_pause)
         }
     }
 
     private fun setFolded(folded: Boolean) {
-        this.isFolded = folded
+        isFolded = folded
         if (folded) {
-            floatingView.findViewById<View>(R.id.bubble_icon).visibility = View.VISIBLE
-            floatingView.findViewById<View>(R.id.window_container).visibility = View.GONE
-            
+            bubbleIcon.visibility = View.VISIBLE
+            windowContainer.visibility = View.GONE
             layoutParams.width = WindowManager.LayoutParams.WRAP_CONTENT
             layoutParams.height = WindowManager.LayoutParams.WRAP_CONTENT
-            
-            layoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
-            windowManager.updateViewLayout(floatingView, layoutParams)
+            layoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+            isAutoScrolling = false // pause scroll
         } else {
-            floatingView.findViewById<View>(R.id.bubble_icon).visibility = View.GONE
-            floatingView.findViewById<View>(R.id.window_container).visibility = View.VISIBLE
+            bubbleIcon.visibility = View.GONE
+            windowContainer.visibility = View.VISIBLE
             toolbarContainer.visibility = View.GONE
-            
             layoutParams.width = savedWindowWidth
             layoutParams.height = savedWindowHeight
-            
-            layoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
-                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
-                 
-            windowManager.updateViewLayout(floatingView, layoutParams)
+            layoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
         }
+        windowManager.updateViewLayout(floatingView, layoutParams)
     }
 
     override fun onDestroy() {
-        super.onDestroy()
         saveCurrentPosition()
+        if (::tts.isInitialized) {
+            tts.stop()
+            tts.shutdown()
+        }
+        scrollHandler.removeCallbacks(scrollRunnable)
         serviceScope.cancel()
-        if (::floatingView.isInitialized) {
+        if (::windowManager.isInitialized && ::floatingView.isInitialized) {
             windowManager.removeView(floatingView)
         }
+        super.onDestroy()
     }
 }
