@@ -71,6 +71,30 @@ class FloatingReaderService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+
+        // Start Foreground Service
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = android.app.NotificationChannel(
+                "reader_channel",
+                "Floating Reader",
+                android.app.NotificationManager.IMPORTANCE_LOW
+            )
+            val manager = getSystemService(android.app.NotificationManager::class.java)
+            manager.createNotificationChannel(channel)
+        }
+
+        val notification = androidx.core.app.NotificationCompat.Builder(this, "reader_channel")
+            .setContentTitle("LiteReader")
+            .setContentText("Reading active")
+            .setSmallIcon(android.R.drawable.ic_media_play)
+            .build()
+
+        if (Build.VERSION.SDK_INT >= 29) {
+            startForeground(1, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+        } else {
+            startForeground(1, notification)
+        }
+
         prefs = getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
         savedWindowWidth = prefs.getInt("win_w", 800)
         savedWindowHeight = prefs.getInt("win_h", 1200)
@@ -155,7 +179,7 @@ class FloatingReaderService : Service() {
 
         floatingView.findViewById<View>(R.id.btn_exit).setOnClickListener {
             saveCurrentPosition()
-            stopSelf()
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ stopSelf() }, 150)
         }
 
         // Tap content to toggle Moonreader toolbar
@@ -197,11 +221,11 @@ class FloatingReaderService : Service() {
         floatingView.findViewById<View>(R.id.btn_next).setOnClickListener { navigateChapter(1) }
         floatingView.findViewById<View>(R.id.btn_library).setOnClickListener {
             saveCurrentPosition()
-            stopSelf()
             val intent = Intent(this@FloatingReaderService, com.example.MainActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
             try { startActivity(intent) } catch (e: Exception) { AppLogger.d("Service", "Failed to start library: ${e.message}") }
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ stopSelf() }, 150)
         }
         floatingView.findViewById<View>(R.id.btn_auto_scroll).setOnClickListener {
             isAutoScrolling = !isAutoScrolling

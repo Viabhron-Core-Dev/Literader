@@ -59,8 +59,8 @@ class MainActivity : ComponentActivity() {
         val intent = Intent(this, FloatingReaderService::class.java).apply {
             putExtra("BOOK_ID", bookId)
         }
-        startService(intent)
-        moveTaskToBack(true) // Hide main activity smoothly
+        androidx.core.content.ContextCompat.startForegroundService(this, intent)
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ finish() }, 150) // Delay main activity exit so floating reader takes over cleanly
     }
 }
 
