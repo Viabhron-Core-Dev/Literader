@@ -78,67 +78,91 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom"
                 android:orientation="vertical"
-                android:background="#DD111111"
+                android:background="#E6111111"
                 android:visibility="gone">
                 
+                <!-- Top part: Progress bar with tap to go forward/backward -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:padding="12dp">
+                    android:gravity="center_vertical"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="4dp"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="12dp">
+                    
+                    <ImageView android:id="@+id/btn_prev"
+                        android:layout_width="40dp" android:layout_height="40dp" android:padding="12dp"
+                        android:src="@android:drawable/ic_media_previous" android:tint="#AAAAAA" />
+                    
+                    <SeekBar
+                        android:id="@+id/seek_progress"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:progressDrawable="@android:drawable/progress_horizontal"
+                        android:thumbTint="#FFFFFF"
+                        android:progressTint="#7FE9F9"/>
+                        
                     <TextView
-                        android:id="@+id/tv_chapter_title"
+                        android:id="@+id/tv_progress"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:textColor="#FFFFFF"
                         android:textSize="14sp"
                         android:textStyle="bold"
-                        android:text="Chapter Title" />
-                    <Space android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1"/>
-                    <TextView
-                        android:id="@+id/tv_progress"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textColor="#AAAAAA"
-                        android:textSize="12sp"
-                        android:text="0%" />
+                        android:layout_marginStart="8dp"
+                        android:text="82%" />
+                        
+                    <ImageView android:id="@+id/btn_next"
+                        android:layout_width="40dp" android:layout_height="40dp" android:padding="12dp"
+                        android:src="@android:drawable/ic_media_next" android:tint="#AAAAAA" />
                 </LinearLayout>
 
+                <!-- Below buttons: Compact set of main actions -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center"
-                    android:padding="8dp">
-
-                    <ImageView android:id="@+id/btn_prev"
-                        android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:padding="12dp"
-                        android:src="@android:drawable/ic_media_previous" android:tint="#FFFFFF" />
-
-                    <!-- Search, library, settings on demand -->
-                    <ImageView android:id="@+id/btn_search"
-                        android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:padding="12dp"
-                        android:src="@android:drawable/ic_menu_search" android:tint="#FFFFFF" />
-
-                    <ImageView android:id="@+id/btn_auto_scroll"
-                        android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:padding="12dp"
-                        android:src="@android:drawable/ic_menu_sort_by_size" android:tint="#FFFFFF" />
+                    android:paddingBottom="8dp"
+                    android:paddingTop="4dp">
 
                     <ImageView android:id="@+id/btn_library"
-                        android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:padding="12dp"
-                        android:src="@android:drawable/ic_menu_gallery" android:tint="#FFFFFF" />
+                        android:layout_width="0dp" android:layout_weight="1" android:layout_height="36dp" android:padding="6dp"
+                        android:src="@android:drawable/ic_menu_gallery" android:tint="#FFFFFF"
+                        android:contentDescription="Library" />
 
-                    <ImageView android:id="@+id/btn_settings"
-                        android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:padding="12dp"
-                        android:src="@android:drawable/ic_menu_preferences" android:tint="#FFFFFF" />
+                    <ImageView android:id="@+id/btn_chapters"
+                        android:layout_width="0dp" android:layout_weight="1" android:layout_height="36dp" android:padding="6dp"
+                        android:src="@android:drawable/ic_menu_sort_by_size" android:tint="#FFFFFF"
+                        android:contentDescription="Chapter List" />
 
                     <ImageView android:id="@+id/btn_tts"
-                        android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:padding="12dp"
-                        android:src="@android:drawable/ic_media_play" android:tint="#FFFFFF" />
+                        android:layout_width="0dp" android:layout_weight="1" android:layout_height="36dp" android:padding="6dp"
+                        android:src="@android:drawable/ic_lock_silent_mode_off" android:tint="#FFFFFF"
+                        android:contentDescription="TTS" />
 
-                    <ImageView android:id="@+id/btn_next"
-                        android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:padding="12dp"
-                        android:src="@android:drawable/ic_media_next" android:tint="#FFFFFF" />
+                    <ImageView android:id="@+id/btn_auto_scroll"
+                        android:layout_width="0dp" android:layout_weight="1" android:layout_height="36dp" android:padding="6dp"
+                        android:src="@android:drawable/ic_menu_directions" android:tint="#FFFFFF"
+                        android:contentDescription="Auto Scroll" />
+
+                    <ImageView android:id="@+id/btn_search"
+                        android:layout_width="0dp" android:layout_weight="1" android:layout_height="36dp" android:padding="6dp"
+                        android:src="@android:drawable/ic_menu_search" android:tint="#FFFFFF"
+                        android:contentDescription="Search" />
+
+                    <ImageView android:id="@+id/btn_settings"
+                        android:layout_width="0dp" android:layout_weight="1" android:layout_height="36dp" android:padding="6dp"
+                        android:src="@android:drawable/ic_menu_preferences" android:tint="#FFFFFF"
+                        android:contentDescription="Settings" />
+
+                    <ImageView android:id="@+id/btn_exit_toolbar"
+                        android:layout_width="0dp" android:layout_weight="1" android:layout_height="36dp" android:padding="6dp"
+                        android:src="@android:drawable/ic_lock_power_off" android:tint="#FFFFFF"
+                        android:contentDescription="Exit" />
                 </LinearLayout>
             </LinearLayout>
         </FrameLayout>

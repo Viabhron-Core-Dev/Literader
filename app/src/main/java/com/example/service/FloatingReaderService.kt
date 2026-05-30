@@ -30,7 +30,6 @@ class FloatingReaderService : Service() {
     private lateinit var tvWindowTitle: TextView
     private lateinit var tvContent: TextView
     private lateinit var scrollView: ScrollView
-    private lateinit var tvChapterTitle: TextView
     private lateinit var tvProgress: TextView
     private lateinit var toolbarContainer: View
     private lateinit var bubbleIcon: ImageView
@@ -149,7 +148,6 @@ class FloatingReaderService : Service() {
         tvWindowTitle = floatingView.findViewById(R.id.tv_window_title)
         tvContent = floatingView.findViewById(R.id.tv_content)
         scrollView = floatingView.findViewById(R.id.scroll_view)
-        tvChapterTitle = floatingView.findViewById(R.id.tv_chapter_title)
         tvProgress = floatingView.findViewById(R.id.tv_progress)
         toolbarContainer = floatingView.findViewById(R.id.toolbar_container)
         bubbleIcon = floatingView.findViewById(R.id.bubble_icon)
@@ -219,6 +217,13 @@ class FloatingReaderService : Service() {
         // Toolbar Buttons
         floatingView.findViewById<View>(R.id.btn_prev).setOnClickListener { navigateChapter(-1) }
         floatingView.findViewById<View>(R.id.btn_next).setOnClickListener { navigateChapter(1) }
+        floatingView.findViewById<View>(R.id.btn_chapters).setOnClickListener {
+            Toast.makeText(this, "Chapter List opening soon", Toast.LENGTH_SHORT).show()
+        }
+        floatingView.findViewById<View>(R.id.btn_exit_toolbar).setOnClickListener {
+            saveCurrentPosition()
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ stopSelf() }, 150)
+        }
         floatingView.findViewById<View>(R.id.btn_library).setOnClickListener {
             saveCurrentPosition()
             val intent = Intent(this@FloatingReaderService, com.example.MainActivity::class.java).apply {
@@ -230,14 +235,30 @@ class FloatingReaderService : Service() {
         floatingView.findViewById<View>(R.id.btn_auto_scroll).setOnClickListener {
             isAutoScrolling = !isAutoScrolling
             if (isAutoScrolling) {
+                Toast.makeText(this, "Auto-scroll ON", Toast.LENGTH_SHORT).show()
                 scrollHandler.post(scrollRunnable)
             } else {
+                Toast.makeText(this, "Auto-scroll OFF", Toast.LENGTH_SHORT).show()
                 scrollHandler.removeCallbacks(scrollRunnable)
             }
         }
         floatingView.findViewById<View>(R.id.btn_search).setOnClickListener {
-            Toast.makeText(this, "Search coming soon (Lightweight)", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Search coming soon", Toast.LENGTH_SHORT).show()
         }
+        
+        val seekProgress = floatingView.findViewById<SeekBar>(R.id.seek_progress)
+        seekProgress.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) {
+                    currentBook?.let { book ->
+                        val targetChapter = (progress * max(1, book.totalChapters - 1)) / 100
+                        navigateChapter(targetChapter - currentChapterIndex)
+                    }
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
         floatingView.findViewById<View>(R.id.btn_settings).setOnClickListener {
             try {
                 val f = AppLogger.export(this)
@@ -261,15 +282,20 @@ class FloatingReaderService : Service() {
         }
 
         // Track scrolling for progress saving
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            scrollView.setOnScrollChangeListener { _, _, scrollY, _, _ ->
-                currentBook?.let { book ->
-                    // aggressively local save, DB sync on shutdown
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                scrollView.setOnScrollChangeListener { _, _, scrollY, _, _ ->
                     lastKnownScrollY = scrollY
+                    if (prefs.getBoolean("continuous_save", false)) {
+                        scrollHandler.removeCallbacks(saveScrollRunnable)
+                        scrollHandler.postDelayed(saveScrollRunnable, 1500)
+                    }
                 }
             }
         }
-    }
+
+        private val saveScrollRunnable = Runnable {
+            saveCurrentPosition()
+        }
 
     private var lastKnownScrollY = 0
 
@@ -362,9 +388,16 @@ class FloatingReaderService : Service() {
     private fun renderChapter(scrollY: Int) {
         val book = currentBook ?: return
         tvWindowTitle.text = "${book.title} (Ch ${currentChapterIndex + 1}/${book.totalChapters})"
-        tvChapterTitle.text = "Chapter ${currentChapterIndex + 1}"
+        
         tvContent.text = chapterContent
-        tvProgress.text = "${((currentChapterIndex + 1) * 100) / max(1, book.totalChapters)}%"
+        val percent = if (book.totalChapters > 1) {
+            (currentChapterIndex * 100) / (book.totalChapters - 1)
+        } else {
+            100
+        }
+        tvProgress.text = "$percent%"
+        
+        floatingView.findViewById<SeekBar>(R.id.seek_progress)?.progress = percent
         
         scrollView.post {
             scrollView.scrollTo(0, scrollY)
@@ -420,7 +453,7 @@ class FloatingReaderService : Service() {
             windowContainer.visibility = View.GONE
             layoutParams.width = WindowManager.LayoutParams.WRAP_CONTENT
             layoutParams.height = WindowManager.LayoutParams.WRAP_CONTENT
-            layoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+            layoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
             isAutoScrolling = false // pause scroll
         } else {
             bubbleIcon.visibility = View.GONE
@@ -428,9 +461,14 @@ class FloatingReaderService : Service() {
             toolbarContainer.visibility = View.GONE
             layoutParams.width = savedWindowWidth
             layoutParams.height = savedWindowHeight
-            layoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+            layoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
         }
         windowManager.updateViewLayout(floatingView, layoutParams)
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        saveCurrentPosition()
+        super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
