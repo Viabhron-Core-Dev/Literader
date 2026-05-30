@@ -46,4 +46,51 @@ object EpubParser {
             return@withContext -1
         }
     }
+
+    suspend fun parseTxtToText(context: Context, bookId: Int, txtFile: File): Int = withContext(Dispatchers.IO) {
+        try {
+            val bookDir = File(context.filesDir, "book_$bookId")
+            if (!bookDir.exists()) bookDir.mkdirs()
+
+            val fullText = txtFile.readText()
+            // Split into chapters roughly every 15000 characters to prevent TextView lag
+            val chunkSize = 15000
+            var chapterCount = 0
+            var currentIndex = 0
+            
+            while (currentIndex < fullText.length) {
+                var endIndex = currentIndex + chunkSize
+                if (endIndex >= fullText.length) {
+                    endIndex = fullText.length
+                } else {
+                    // Try to find a paragraph break (double newline) to split at
+                    var breakIdx = fullText.indexOf("\n\n", endIndex - 2000)
+                    if (breakIdx == -1 || breakIdx > endIndex + 2000) {
+                        breakIdx = fullText.indexOf("\n", endIndex)
+                    }
+                    if (breakIdx != -1 && breakIdx < fullText.length) {
+                        endIndex = breakIdx + 1
+                    }
+                }
+                
+                val chapterText = fullText.substring(currentIndex, endIndex).trim()
+                if (chapterText.isNotEmpty()) {
+                    val chapterFile = File(bookDir, "chapter_$chapterCount.txt")
+                    chapterFile.writeText(chapterText)
+                    chapterCount++
+                }
+                currentIndex = endIndex
+            }
+            // Ensure at least 1 chapter if empty
+            if (chapterCount == 0) {
+                val chapterFile = File(bookDir, "chapter_0.txt")
+                chapterFile.writeText("Empty book.")
+                chapterCount = 1
+            }
+            return@withContext chapterCount
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return@withContext -1
+        }
+    }
 }

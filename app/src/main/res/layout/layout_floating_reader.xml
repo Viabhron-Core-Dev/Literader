@@ -41,6 +41,14 @@
                 android:text="LiteReader" />
             
             <ImageView
+                android:id="@+id/btn_minimize"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:padding="10dp"
+                android:src="@android:drawable/ic_menu_revert"
+                android:tint="#888888" />
+
+            <ImageView
                 android:id="@+id/btn_exit"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
@@ -70,6 +78,73 @@
                     android:lineSpacingExtra="6dp"
                     android:text="Loading..."/>
             </ScrollView>
+
+            <!-- Container for Chapter List Overlay (Hidden by Default) -->
+            <FrameLayout
+                android:id="@+id/overlay_chapters"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#222222"
+                android:visibility="gone">
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/list_chapters"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipToPadding="false"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"/>
+            </FrameLayout>
+
+            <!-- Container for Library Overlay (Hidden by Default) -->
+            <FrameLayout
+                android:id="@+id/overlay_library"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#222222"
+                android:visibility="gone">
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/list_library"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipToPadding="false"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="80dp"/>
+                <com.google.android.material.floatingactionbutton.FloatingActionButton
+                    android:id="@+id/fab_add_book"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|end"
+                    android:layout_margin="16dp"
+                    android:src="@android:drawable/ic_input_add" />
+            </FrameLayout>
+
+            <!-- Container for Settings Overlay (Hidden by Default) -->
+            <FrameLayout
+                android:id="@+id/overlay_settings"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#DD111111"
+                android:visibility="gone">
+                <ScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Settings" android:textColor="#FFF" android:textSize="20sp" android:textStyle="bold" android:layout_marginBottom="16dp"/>
+                        
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Font Size" android:textColor="#CCC" android:layout_marginTop="8dp"/>
+                        <SeekBar android:id="@+id/seek_font_size" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="40" android:progress="18" android:paddingTop="8dp" android:paddingBottom="16dp"/>
+                        
+                        <Switch android:id="@+id/switch_bookmarks" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Enable Bookmarks UI" android:textColor="#CCC" android:paddingVertical="8dp"/>
+                        <Switch android:id="@+id/switch_theme" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Light Theme" android:textColor="#CCC" android:paddingVertical="8dp"/>
+                        
+                        <Button android:id="@+id/btn_export_logs" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Export Logs" android:layout_marginTop="24dp"/>
+                    </LinearLayout>
+                </ScrollView>
+            </FrameLayout>
 
             <!-- Toggleable Toolbar (Moonreader style) -->
             <LinearLayout

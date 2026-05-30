@@ -26,10 +26,15 @@ class LibraryRepository(private val context: Context) {
     }
 
     suspend fun importBook(uri: Uri): EpubBook? = withContext(Dispatchers.IO) {
-        val title = getFileName(uri) ?: "Unknown Book"
+        val rawName = getFileName(uri) ?: "Unknown Book"
+        val mimeType = context.contentResolver.getType(uri)
+        val isTxt = rawName.lowercase().endsWith(".txt") || mimeType?.startsWith("text/") == true
+        val title = rawName.removeSuffix(".epub").removeSuffix(".txt")
+        
         try {
             val inputStream = context.contentResolver.openInputStream(uri) ?: return@withContext null
-            val destFile = File(context.filesDir, "imported_${System.currentTimeMillis()}.epub")
+            val ext = if (isTxt) "txt" else "epub"
+            val destFile = File(context.filesDir, "imported_${System.currentTimeMillis()}.$ext")
             FileOutputStream(destFile).use { output ->
                 inputStream.copyTo(output)
             }
@@ -39,7 +44,12 @@ class LibraryRepository(private val context: Context) {
             val finalBook = book.copy(id = id)
             
             // Trigger parsing
-            val totalChapters = EpubParser.parseEpubToText(context, id, destFile)
+            val totalChapters = if (isTxt) {
+                EpubParser.parseTxtToText(context, id, destFile)
+            } else {
+                EpubParser.parseEpubToText(context, id, destFile)
+            }
+            
             if (totalChapters > 0) {
                 dao.updateBook(finalBook.copy(totalChapters = totalChapters, isParsed = true))
             }
@@ -59,6 +69,6 @@ class LibraryRepository(private val context: Context) {
                 if (idx != -1) name = it.getString(idx)
             }
         }
-        return name?.removeSuffix(".epub")
+        return name
     }
 }

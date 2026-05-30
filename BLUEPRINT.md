@@ -27,7 +27,10 @@ A lightweight, offline-first minimal EPUB reader designed as a floating overlay 
 System is fully rebuilt from scratch post-workspace wipe. Ready for deployment.
 
 ### Progress Update
-* Blueprint Status: Phase 4
+* Blueprint Status: Phase 5
 * Files Synchronized:
-  - `.github/workflows/build-debug-apk.yml`: Disabled Gradle wrapper validation to fix GitHub Actions CI pipeline errors.
-* Next Action: Await further instructions.
+  - `layout_floating_reader.xml`: Added dynamic FrameLayout overlays for Library, Chapters, Settings. Added minimize icon, and new UI files.
+  - `item_library_book.xml & item_chapter.xml`: List templates for Recyclerviews.
+  - `FloatingReaderService.kt`: Added `LibraryAdapter` and `ChapterAdapter`, switching visibility states without closing overlay `view_container`. Added real DB linkage.
+  - `MainActivity.kt`: Removed full-screen library Compose Activity. Routes `PICK_EPUB` strictly.
+* Next Action: Test internal navigation flow (Library <-> Settings <-> Reader).

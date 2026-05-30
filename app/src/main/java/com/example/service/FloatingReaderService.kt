@@ -111,8 +111,20 @@ class FloatingReaderService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val bookId = intent?.getIntExtra("BOOK_ID", -1) ?: -1
-        if (bookId != -1) {
+        val fromLauncher = intent?.getBooleanExtra("OPEN_FROM_LAUNCHER", false) ?: false
+        
+        if (fromLauncher) {
+            val lastBook = prefs.getInt("last_book_id", -1)
+            if (lastBook != -1) {
+                loadBook(lastBook)
+                setFolded(false)
+            } else {
+                openLibraryView()
+                setFolded(false)
+            }
+        } else if (bookId != -1) {
             loadBook(bookId)
+            setFolded(false)
         }
         return START_NOT_STICKY
     }
@@ -130,7 +142,7 @@ class FloatingReaderService : Service() {
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             windowType,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
         )
         layoutParams.gravity = Gravity.TOP or Gravity.START
@@ -144,6 +156,12 @@ class FloatingReaderService : Service() {
         setFolded(true)
     }
 
+    private lateinit var overlayLibrary: View
+    private lateinit var overlayChapters: View
+    private lateinit var overlaySettings: View
+    private lateinit var listLibrary: androidx.recyclerview.widget.RecyclerView
+    private lateinit var listChapters: androidx.recyclerview.widget.RecyclerView
+
     private fun initViews() {
         tvWindowTitle = floatingView.findViewById(R.id.tv_window_title)
         tvContent = floatingView.findViewById(R.id.tv_content)
@@ -153,20 +171,70 @@ class FloatingReaderService : Service() {
         bubbleIcon = floatingView.findViewById(R.id.bubble_icon)
         windowContainer = floatingView.findViewById(R.id.window_container)
         btnTts = floatingView.findViewById(R.id.btn_tts)
+
+        overlayLibrary = floatingView.findViewById(R.id.overlay_library)
+        overlayChapters = floatingView.findViewById(R.id.overlay_chapters)
+        overlaySettings = floatingView.findViewById(R.id.overlay_settings)
+        listLibrary = floatingView.findViewById(R.id.list_library)
+        listChapters = floatingView.findViewById(R.id.list_chapters)
+    }
+
+    private fun hideOverlays() {
+        overlayLibrary.visibility = View.GONE
+        overlayChapters.visibility = View.GONE
+        overlaySettings.visibility = View.GONE
+        scrollView.visibility = View.VISIBLE
+    }
+
+    private fun openLibraryView() {
+        hideOverlays()
+        overlayLibrary.visibility = View.VISIBLE
+        scrollView.visibility = View.GONE
+        tvWindowTitle.text = "Library"
+        
+        serviceScope.launch(Dispatchers.IO) {
+            val db = AppDatabase.getDatabase(this@FloatingReaderService)
+            val books = db.epubDao().getAllBooks()
+            withContext(Dispatchers.Main) {
+                listLibrary.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this@FloatingReaderService)
+                listLibrary.adapter = LibraryAdapter(books)
+            }
+        }
+        
+        floatingView.findViewById<View>(R.id.fab_add_book)?.setOnClickListener {
+            val intent = Intent(this, com.example.MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                putExtra("PICK_EPUB", true)
+            }
+            try { startActivity(intent) } catch (e: Exception) { AppLogger.d("Service", "Failed to start library import: ${e.message}") }
+        }
+    }
+
+    private fun openChaptersView() {
+        hideOverlays()
+        overlayChapters.visibility = View.VISIBLE
+        scrollView.visibility = View.GONE
+        tvWindowTitle.text = "Chapters"
+
+        currentBook?.totalChapters?.let { count ->
+            listChapters.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
+            listChapters.adapter = ChapterAdapter(count)
+            listChapters.scrollToPosition(currentChapterIndex)
+        }
+    }
+
+    private fun openSettingsView() {
+        hideOverlays()
+        overlaySettings.visibility = View.VISIBLE
+        scrollView.visibility = View.GONE
+        tvWindowTitle.text = "Settings"
     }
 
     private fun setupListeners() {
         val topDragBar = floatingView.findViewById<View>(R.id.top_drag_bar)
         val resizeHandle = floatingView.findViewById<View>(R.id.resize_handle)
         
-        // Tap outside to fold
-        floatingView.setOnTouchListener { _, event ->
-            if (!isFolded && event.action == MotionEvent.ACTION_OUTSIDE) {
-                setFolded(true)
-                return@setOnTouchListener true
-            }
-            false
-        }
+        // Tap outside to fold removed
 
         // Long press movement for bubble and top bar
         val dragListener = createLongPressDragListener()
@@ -177,7 +245,7 @@ class FloatingReaderService : Service() {
 
         floatingView.findViewById<View>(R.id.btn_exit).setOnClickListener {
             saveCurrentPosition()
-            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ stopSelf() }, 150)
+            stopSelf()
         }
 
         // Tap content to toggle Moonreader toolbar
@@ -218,19 +286,18 @@ class FloatingReaderService : Service() {
         floatingView.findViewById<View>(R.id.btn_prev).setOnClickListener { navigateChapter(-1) }
         floatingView.findViewById<View>(R.id.btn_next).setOnClickListener { navigateChapter(1) }
         floatingView.findViewById<View>(R.id.btn_chapters).setOnClickListener {
-            Toast.makeText(this, "Chapter List opening soon", Toast.LENGTH_SHORT).show()
+            openChaptersView()
+        }
+        floatingView.findViewById<View>(R.id.btn_minimize).setOnClickListener {
+            setFolded(true)
         }
         floatingView.findViewById<View>(R.id.btn_exit_toolbar).setOnClickListener {
             saveCurrentPosition()
-            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ stopSelf() }, 150)
+            stopSelf()
         }
         floatingView.findViewById<View>(R.id.btn_library).setOnClickListener {
             saveCurrentPosition()
-            val intent = Intent(this@FloatingReaderService, com.example.MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            }
-            try { startActivity(intent) } catch (e: Exception) { AppLogger.d("Service", "Failed to start library: ${e.message}") }
-            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ stopSelf() }, 150)
+            openLibraryView()
         }
         floatingView.findViewById<View>(R.id.btn_auto_scroll).setOnClickListener {
             isAutoScrolling = !isAutoScrolling
@@ -260,6 +327,10 @@ class FloatingReaderService : Service() {
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
         floatingView.findViewById<View>(R.id.btn_settings).setOnClickListener {
+            openSettingsView()
+        }
+        
+        floatingView.findViewById<View>(R.id.btn_export_logs)?.setOnClickListener {
             try {
                 val f = AppLogger.export(this)
                 val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.provider", f)
@@ -274,6 +345,38 @@ class FloatingReaderService : Service() {
                 AppLogger.d("Settings", "Export failed: ${e.message}")
                 Toast.makeText(this, "Logs saved to Downloads folder", Toast.LENGTH_LONG).show()
                 AppLogger.export(this)
+            }
+        }
+        
+        floatingView.findViewById<Switch>(R.id.switch_bookmarks)?.setOnCheckedChangeListener { _, isChecked ->
+            // Stub for bookmarks feature enablement
+        }
+        
+        floatingView.findViewById<Switch>(R.id.switch_theme)?.setOnCheckedChangeListener { _, isChecked ->
+            // Basic theme mock logic
+            val bgColor = if (isChecked) android.graphics.Color.WHITE else android.graphics.Color.parseColor("#222222")
+            val txColor = if (isChecked) android.graphics.Color.BLACK else android.graphics.Color.parseColor("#DDDDDD")
+            windowContainer.setBackgroundColor(bgColor)
+            tvContent.setTextColor(txColor)
+            overlayChapters.setBackgroundColor(bgColor)
+            overlayLibrary.setBackgroundColor(bgColor)
+            overlaySettings.setBackgroundColor(bgColor)
+        }
+        
+        floatingView.findViewById<SeekBar>(R.id.seek_font_size)?.setOnSeekBarChangeListener(object: SeekBar.OnSeekBarChangeListener{
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                tvContent.textSize = (12 + progress).toFloat()
+            }
+            override fun onStartTrackingTouch(p0: SeekBar?) {}
+            override fun onStopTrackingTouch(p0: SeekBar?) {}
+        })
+
+        floatingView.findViewById<View>(R.id.top_drag_bar).setOnClickListener {
+            if (overlayLibrary.visibility == View.VISIBLE || overlayChapters.visibility == View.VISIBLE || overlaySettings.visibility == View.VISIBLE) {
+                hideOverlays()
+                currentBook?.let { 
+                    tvWindowTitle.text = "${it.title} (Ch ${currentChapterIndex + 1}/${it.totalChapters})"
+                }
             }
         }
         
@@ -353,6 +456,7 @@ class FloatingReaderService : Service() {
     }
 
     private fun loadBook(bookId: Int) {
+        prefs.edit().putInt("last_book_id", bookId).apply()
         serviceScope.launch {
             val db = AppDatabase.getDatabase(this@FloatingReaderService)
             val fetchedBook = db.epubDao().getBookById(bookId)
@@ -446,6 +550,95 @@ class FloatingReaderService : Service() {
         }
     }
 
+    private inner class LibraryAdapter(var books: List<com.example.data.EpubBook>) : androidx.recyclerview.widget.RecyclerView.Adapter<LibraryAdapter.LibraryViewHolder>() {
+        
+        inner class LibraryViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
+            val tvTitle: TextView = view.findViewById(R.id.tv_title)
+            val tvSub: TextView = view.findViewById(R.id.tv_subtitle)
+            val btnMore: ImageView = view.findViewById(R.id.btn_more)
+            init {
+                view.setOnClickListener {
+                    val pos = adapterPosition
+                    if (pos != androidx.recyclerview.widget.RecyclerView.NO_POSITION) {
+                        val book = books[pos]
+                        if (book.isParsed) {
+                            loadBook(book.id)
+                            hideOverlays()
+                        } else {
+                            Toast.makeText(this@FloatingReaderService, "Book is still parsing...", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                btnMore.setOnClickListener {
+                    val pos = adapterPosition
+                    if (pos != androidx.recyclerview.widget.RecyclerView.NO_POSITION) {
+                        val book = books[pos]
+                        serviceScope.launch(Dispatchers.IO) {
+                            val db = AppDatabase.getDatabase(this@FloatingReaderService)
+                            db.epubDao().deleteBook(book)
+                            val updated = db.epubDao().getAllBooks()
+                            withContext(Dispatchers.Main) {
+                                books = updated
+                                notifyDataSetChanged()
+                            }
+                        }
+                        Toast.makeText(this@FloatingReaderService, "Deleted ${book.title}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+
+        override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): LibraryViewHolder {
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_library_book, parent, false)
+            return LibraryViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: LibraryViewHolder, position: Int) {
+            val book = books[position]
+            holder.tvTitle.text = book.title
+            val status = if (book.isParsed) "Parsed • Ch ${book.lastReadChapter + 1}/${book.totalChapters}" else "Parsing/Pending..."
+            holder.tvSub.text = status
+        }
+
+        override fun getItemCount() = books.size
+    }
+        
+    private inner class ChapterAdapter(val totalChapters: Int) : androidx.recyclerview.widget.RecyclerView.Adapter<ChapterAdapter.ChapterViewHolder>() {
+        inner class ChapterViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
+            val tvTitle: TextView = view.findViewById(R.id.tv_chapter_title)
+            init {
+                view.setOnClickListener {
+                    val pos = adapterPosition
+                    if (pos != androidx.recyclerview.widget.RecyclerView.NO_POSITION) {
+                        saveCurrentPosition()
+                        currentChapterIndex = pos
+                        currentBook?.let { book ->
+                            currentBook = book.copy(lastReadChapter = pos, lastReadScrollY = 0)
+                        }
+                        loadChapterText()
+                        hideOverlays()
+                    }
+                }
+            }
+        }
+
+        override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): ChapterViewHolder {
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_chapter, parent, false)
+            return ChapterViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: ChapterViewHolder, position: Int) {
+            holder.tvTitle.text = "Chapter ${position + 1}"
+            if (position == currentChapterIndex) {
+                holder.tvTitle.setTextColor(android.graphics.Color.parseColor("#7FE9F9"))
+            } else {
+                holder.tvTitle.setTextColor(android.graphics.Color.WHITE)
+            }
+        }
+
+        override fun getItemCount() = totalChapters
+    }
+
     private fun setFolded(folded: Boolean) {
         isFolded = folded
         if (folded) {
@@ -453,7 +646,7 @@ class FloatingReaderService : Service() {
             windowContainer.visibility = View.GONE
             layoutParams.width = WindowManager.LayoutParams.WRAP_CONTENT
             layoutParams.height = WindowManager.LayoutParams.WRAP_CONTENT
-            layoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+            layoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
             isAutoScrolling = false // pause scroll
         } else {
             bubbleIcon.visibility = View.GONE
@@ -461,7 +654,7 @@ class FloatingReaderService : Service() {
             toolbarContainer.visibility = View.GONE
             layoutParams.width = savedWindowWidth
             layoutParams.height = savedWindowHeight
-            layoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+            layoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
         }
         windowManager.updateViewLayout(floatingView, layoutParams)
     }
