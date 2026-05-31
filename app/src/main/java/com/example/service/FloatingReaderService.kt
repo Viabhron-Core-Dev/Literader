@@ -149,7 +149,13 @@ class FloatingReaderService : Service() {
         layoutParams.x = prefs.getInt("win_x", 100)
         layoutParams.y = prefs.getInt("win_y", 100)
 
-        windowManager.addView(floatingView, layoutParams)
+        try {
+            windowManager.addView(floatingView, layoutParams)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            stopSelf()
+            return
+        }
 
         initViews()
         setupListeners()

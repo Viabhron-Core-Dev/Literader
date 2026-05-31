@@ -26,7 +26,7 @@ class MainActivity : ComponentActivity() {
                 putExtra("OPEN_FROM_LAUNCHER", true)
             }
             androidx.core.content.ContextCompat.startForegroundService(this@MainActivity, intent)
-            finishAndRemoveTask()
+            finish()
         }
     }
 
@@ -45,7 +45,7 @@ class MainActivity : ComponentActivity() {
             val permIntent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
             startActivity(permIntent)
             Toast.makeText(this, "Please grant overlay permission", Toast.LENGTH_SHORT).show()
-            finishAndRemoveTask()
+            finish()
             return
         }
 
@@ -62,7 +62,7 @@ class MainActivity : ComponentActivity() {
                 } else {
                     Toast.makeText(this@MainActivity, "Failed to import book", Toast.LENGTH_SHORT).show()
                 }
-                finishAndRemoveTask()
+                finish()
             }
             return
         }
@@ -76,6 +76,6 @@ class MainActivity : ComponentActivity() {
             putExtra("OPEN_FROM_LAUNCHER", true)
         }
         androidx.core.content.ContextCompat.startForegroundService(this, serviceIntent)
-        finishAndRemoveTask()
+        finish()
     }
 }
