@@ -7,7 +7,19 @@ import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import com.example.data.LibraryRepository
 import com.example.service.FloatingReaderService
@@ -26,13 +38,33 @@ class MainActivity : ComponentActivity() {
                 putExtra("OPEN_FROM_LAUNCHER", true)
             }
             androidx.core.content.ContextCompat.startForegroundService(this@MainActivity, intent)
-            finish()
+            finishAndRemoveTask()
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        handleIntent(intent)
+        
+        // Skip welcome if opening a file or picking a file
+        if (intent.action == Intent.ACTION_VIEW || intent.getBooleanExtra("PICK_EPUB", false)) {
+            handleIntent(intent)
+            return
+        }
+
+        setContent {
+            MaterialTheme(colorScheme = lightColorScheme()) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    WelcomeScreen(
+                        onContinue = {
+                            handleIntent(intent)
+                        }
+                    )
+                }
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -45,7 +77,7 @@ class MainActivity : ComponentActivity() {
             val permIntent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
             startActivity(permIntent)
             Toast.makeText(this, "Please grant overlay permission", Toast.LENGTH_SHORT).show()
-            finish()
+            finishAndRemoveTask()
             return
         }
 
@@ -62,7 +94,7 @@ class MainActivity : ComponentActivity() {
                 } else {
                     Toast.makeText(this@MainActivity, "Failed to import book", Toast.LENGTH_SHORT).show()
                 }
-                finish()
+                finishAndRemoveTask()
             }
             return
         }
@@ -76,6 +108,50 @@ class MainActivity : ComponentActivity() {
             putExtra("OPEN_FROM_LAUNCHER", true)
         }
         androidx.core.content.ContextCompat.startForegroundService(this, serviceIntent)
-        finish()
+        finishAndRemoveTask()
+    }
+}
+
+@Composable
+fun WelcomeScreen(onContinue: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.ic_launcher),
+            contentDescription = "App Logo",
+            modifier = Modifier.size(120.dp)
+        )
+        
+        Spacer(modifier = Modifier.height(32.dp))
+        
+        Text(
+            text = "Welcome to LiteReader",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Text(
+            text = "Read EPUBs and TXT files smoothly in a floating bubble while using other apps. When you are ready, tap below to launch the overlay.",
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        
+        Spacer(modifier = Modifier.height(48.dp))
+        
+        Button(
+            onClick = onContinue,
+            modifier = Modifier.fillMaxWidth().height(56.dp)
+        ) {
+            Text("Continue", style = MaterialTheme.typography.titleMedium)
+        }
     }
 }
