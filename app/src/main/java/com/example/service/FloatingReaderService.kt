@@ -87,6 +87,9 @@ class FloatingReaderService : Service() {
             .setContentText("Reading active")
             .setSmallIcon(android.R.drawable.ic_media_play)
             .build()
+            
+        val mediaSession = android.media.session.MediaSession(this, "FloatingReader")
+        mediaSession.isActive = true
 
         if (Build.VERSION.SDK_INT >= 29) {
             startForeground(1, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
