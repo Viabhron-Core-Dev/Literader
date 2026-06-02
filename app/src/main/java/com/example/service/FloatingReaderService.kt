@@ -209,27 +209,76 @@ class FloatingReaderService : Service() {
         scrollView.visibility = View.VISIBLE
     }
 
+    private var currentLibraryTab = "Recent"
+
+    private fun loadLibraryBooks() {
+        serviceScope.launch(Dispatchers.IO) {
+            val db = AppDatabase.getDatabase(this@FloatingReaderService)
+            val books = if (currentLibraryTab == "Recent") {
+                db.epubDao().getAllBooks()
+            } else {
+                db.epubDao().getAllBooksByAddedDesc()
+            }
+            withContext(Dispatchers.Main) {
+                listLibrary.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this@FloatingReaderService)
+                listLibrary.adapter = LibraryAdapter(books)
+                
+                val btnRecent = floatingView.findViewById<Button>(R.id.btn_tab_recent)
+                val btnImported = floatingView.findViewById<Button>(R.id.btn_tab_imported)
+                if (currentLibraryTab == "Recent") {
+                    btnRecent.setTextColor(android.graphics.Color.WHITE)
+                    btnImported.setTextColor(android.graphics.Color.GRAY)
+                } else {
+                    btnRecent.setTextColor(android.graphics.Color.GRAY)
+                    btnImported.setTextColor(android.graphics.Color.WHITE)
+                }
+            }
+        }
+    }
+
     private fun openLibraryView() {
         hideOverlays()
         overlayLibrary.visibility = View.VISIBLE
         scrollView.visibility = View.GONE
         tvWindowTitle.text = "Library"
         
-        serviceScope.launch(Dispatchers.IO) {
-            val db = AppDatabase.getDatabase(this@FloatingReaderService)
-            val books = db.epubDao().getAllBooks()
-            withContext(Dispatchers.Main) {
-                listLibrary.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this@FloatingReaderService)
-                listLibrary.adapter = LibraryAdapter(books)
-            }
+        loadLibraryBooks()
+        
+        floatingView.findViewById<Button>(R.id.btn_tab_recent)?.setOnClickListener {
+            currentLibraryTab = "Recent"
+            loadLibraryBooks()
         }
         
+        floatingView.findViewById<Button>(R.id.btn_tab_imported)?.setOnClickListener {
+            currentLibraryTab = "Imported"
+            loadLibraryBooks()
+        }
+
         floatingView.findViewById<View>(R.id.fab_add_book)?.setOnClickListener {
             val intent = Intent(this, com.example.MainActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 putExtra("PICK_EPUB", true)
             }
             try { startActivity(intent) } catch (e: Exception) { AppLogger.d("Service", "Failed to start library import: ${e.message}") }
+        }
+        
+        floatingView.findViewById<View>(R.id.fab_tracker)?.setOnClickListener {
+            val intent = Intent(this, com.example.TrackerActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+            try { startActivity(intent) } catch (e: Exception) { AppLogger.d("Service", "Failed to start tracker: ${e.message}") }
+            setFolded(true)
+        }
+        
+        floatingView.findViewById<View>(R.id.fab_continue)?.setOnClickListener {
+            hideOverlays()
+            if (currentBook == null) {
+                // If no book is open, open the last read book
+                val lastBook = prefs.getInt("last_book_id", -1)
+                if (lastBook != -1) {
+                    loadBook(lastBook)
+                }
+            }
         }
     }
 
@@ -675,13 +724,15 @@ class FloatingReaderService : Service() {
             bubbleIcon.visibility = View.GONE
             windowContainer.visibility = View.VISIBLE
             toolbarContainer.visibility = View.GONE
-            layoutParams.width = savedWindowWidth
-            layoutParams.height = savedWindowHeight
-            layoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
             
             val metrics = resources.displayMetrics
             val maxW = metrics.widthPixels
             val maxH = metrics.heightPixels
+            
+            layoutParams.width = Math.min(savedWindowWidth, maxW)
+            layoutParams.height = Math.min(savedWindowHeight, maxH)
+            layoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+            
             if (layoutParams.x + layoutParams.width > maxW) {
                 layoutParams.x = maxW - layoutParams.width
             }

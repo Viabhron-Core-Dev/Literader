@@ -20,6 +20,9 @@ interface EpubDao {
     @Query("SELECT * FROM epubs ORDER BY lastOpenedTimestamp DESC")
     suspend fun getAllBooks(): List<EpubBook>
 
+    @Query("SELECT * FROM epubs ORDER BY addedTimestamp DESC")
+    suspend fun getAllBooksByAddedDesc(): List<EpubBook>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBook(book: EpubBook): Long
 

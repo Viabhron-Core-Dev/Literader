@@ -102,28 +102,103 @@
             </FrameLayout>
 
             <!-- Container for Library Overlay (Hidden by Default) -->
-            <FrameLayout
+            <LinearLayout
                 android:id="@+id/overlay_library"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
+                android:orientation="vertical"
                 android:background="#222222"
                 android:visibility="gone">
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/list_library"
+
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:clipToPadding="false"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="80dp"/>
-                <ImageButton
-                    android:id="@+id/fab_add_book"
-                    android:layout_width="56dp"
                     android:layout_height="56dp"
-                    android:layout_gravity="bottom|end"
-                    android:layout_margin="16dp"
-                    android:background="@android:drawable/btn_default"
-                    android:src="@android:drawable/ic_input_add" />
-            </FrameLayout>
+                    android:orientation="horizontal"
+                    android:background="#151515"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="16dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="LiteReader Library"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="#FFFFFF" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:orientation="horizontal"
+                    android:background="#111111">
+                    <Button
+                        android:id="@+id/btn_tab_recent"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:text="Recent"
+                        android:textColor="#FFFFFF"
+                        style="?android:attr/borderlessButtonStyle" />
+                    <Button
+                        android:id="@+id/btn_tab_imported"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:text="Imported"
+                        android:textColor="#FFFFFF"
+                        style="?android:attr/borderlessButtonStyle" />
+                </LinearLayout>
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent">
+                    
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/list_library"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:clipToPadding="false"
+                        android:paddingTop="8dp"
+                        android:paddingBottom="80dp"/>
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="bottom|end"
+                        android:layout_margin="16dp"
+                        android:orientation="vertical"
+                        android:gravity="center_horizontal"
+                        android:clipChildren="false"
+                        android:clipToPadding="false">
+
+                        <!-- Tracker FAB -->
+                        <ImageButton
+                            android:id="@+id/fab_tracker"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:layout_marginBottom="8dp"
+                            android:background="@android:drawable/btn_default"
+                            android:src="@android:drawable/ic_menu_sort_by_size" />
+                            
+                        <!-- Continue Reading FAB -->
+                        <ImageButton
+                            android:id="@+id/fab_continue"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:layout_marginBottom="8dp"
+                            android:background="@android:drawable/btn_default"
+                            android:src="@android:drawable/ic_media_play" />
+                            
+                        <!-- Add Book FAB -->
+                        <ImageButton
+                            android:id="@+id/fab_add_book"
+                            android:layout_width="56dp"
+                            android:layout_height="56dp"
+                            android:background="@android:drawable/btn_default"
+                            android:src="@android:drawable/ic_input_add" />
+                    </LinearLayout>
+                </FrameLayout>
+            </LinearLayout>
 
             <!-- Container for Settings Overlay (Hidden by Default) -->
             <FrameLayout

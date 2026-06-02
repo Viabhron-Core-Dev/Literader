@@ -56,6 +56,8 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".TrackerActivity" android:theme="@style/Theme.LiteReader" android:exported="false" />
+
         <service
             android:name=".service.FloatingReaderService"
             android:exported="false"
