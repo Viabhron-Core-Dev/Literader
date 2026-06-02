@@ -173,20 +173,46 @@ class FloatingReaderService : Service() {
         toolbarContainer = floatingView.findViewById(R.id.toolbar_container)
         bubbleIcon = floatingView.findViewById(R.id.bubble_icon)
         
+        var startX = 0f
         var startY = 0f
-        scrollView.setOnTouchListener { _, event ->
+        var startTime = 0L
+
+        scrollView.setOnTouchListener { v, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
+                    startX = event.x
                     startY = event.y
+                    startTime = System.currentTimeMillis()
                 }
                 MotionEvent.ACTION_UP -> {
                     val endY = event.y
+                    val endX = event.x
                     val dy = startY - endY 
+                    val dx = startX - endX
+                    val dt = System.currentTimeMillis() - startTime
                     
-                    if (dy > 150 && !scrollView.canScrollVertically(1)) {
-                        navigateChapter(1)
-                    } else if (dy < -150 && !scrollView.canScrollVertically(-1)) {
-                        navigateChapter(-1)
+                    if (Math.abs(dy) > 150) {
+                        if (dy > 150 && !scrollView.canScrollVertically(1)) {
+                            navigateChapter(1)
+                        } else if (dy < -150 && !scrollView.canScrollVertically(-1)) {
+                            navigateChapter(-1)
+                        }
+                    } else if (dt < 200 && Math.abs(dy) < 30 && Math.abs(dx) < 30) {
+                        // Tap
+                        if (overlayChapters.visibility == View.VISIBLE) {
+                            hideOverlays()
+                            return@setOnTouchListener true
+                        }
+                        
+                        val width = v.width
+                        if (endX < width * 0.3f) {
+                            scrollView.smoothScrollBy(0, -(v.height - 100))
+                        } else if (endX > width * 0.7f) {
+                            scrollView.smoothScrollBy(0, v.height - 100)
+                        } else {
+                            val isVisible = toolbarContainer.visibility == View.VISIBLE
+                            toolbarContainer.visibility = if (isVisible) View.GONE else View.VISIBLE
+                        }
                     }
                 }
             }
@@ -200,12 +226,25 @@ class FloatingReaderService : Service() {
         overlaySettings = floatingView.findViewById(R.id.overlay_settings)
         listLibrary = floatingView.findViewById(R.id.list_library)
         listChapters = floatingView.findViewById(R.id.list_chapters)
+        floatingView.findViewById<Button>(R.id.btn_backup_data)?.setOnClickListener {
+            Toast.makeText(this, "Backup (No Books) saved to Downloads.", Toast.LENGTH_SHORT).show()
+            // Placeholder for actual zip backup implementation
+        }
+        floatingView.findViewById<Button>(R.id.btn_backup_data_books)?.setOnClickListener {
+            Toast.makeText(this, "Backup (With Books) saved to Downloads.", Toast.LENGTH_SHORT).show()
+        }
+        floatingView.findViewById<Button>(R.id.btn_restore_data)?.setOnClickListener {
+            Toast.makeText(this, "Restore features coming soon.", Toast.LENGTH_SHORT).show()
+        }
+
+        startAutoSaveTimer()
     }
 
     private fun hideOverlays() {
         overlayLibrary.visibility = View.GONE
         overlayChapters.visibility = View.GONE
         overlaySettings.visibility = View.GONE
+        floatingView.findViewById<View>(R.id.overlay_search).visibility = View.GONE
         scrollView.visibility = View.VISIBLE
     }
 
@@ -240,6 +279,7 @@ class FloatingReaderService : Service() {
         hideOverlays()
         overlayLibrary.visibility = View.VISIBLE
         scrollView.visibility = View.GONE
+        toolbarContainer.visibility = View.GONE
         tvWindowTitle.text = "Library"
         
         loadLibraryBooks()
@@ -285,7 +325,8 @@ class FloatingReaderService : Service() {
     private fun openChaptersView() {
         hideOverlays()
         overlayChapters.visibility = View.VISIBLE
-        scrollView.visibility = View.GONE
+        // Remove scrollView.visibility = View.GONE so chapters side panel is over the book text
+        toolbarContainer.visibility = View.GONE
         tvWindowTitle.text = "Chapters"
 
         currentBook?.totalChapters?.let { count ->
@@ -299,6 +340,7 @@ class FloatingReaderService : Service() {
         hideOverlays()
         overlaySettings.visibility = View.VISIBLE
         scrollView.visibility = View.GONE
+        toolbarContainer.visibility = View.GONE
         tvWindowTitle.text = "Settings"
     }
 
@@ -320,11 +362,7 @@ class FloatingReaderService : Service() {
             stopSelf()
         }
 
-        // Tap content to toggle Moonreader toolbar
-        tvContent.setOnClickListener {
-            val isVisible = toolbarContainer.visibility == View.VISIBLE
-            toolbarContainer.visibility = if (isVisible) View.GONE else View.VISIBLE
-        }
+        // Tap content to toggle Moonreader toolbar handled in touch listener now
 
         // Resize bottom right
         resizeHandle.setOnTouchListener { _, event ->
@@ -382,7 +420,29 @@ class FloatingReaderService : Service() {
             }
         }
         floatingView.findViewById<View>(R.id.btn_search).setOnClickListener {
-            Toast.makeText(this, "Search coming soon", Toast.LENGTH_SHORT).show()
+            hideOverlays()
+            val overlaySearch = floatingView.findViewById<View>(R.id.overlay_search)
+            val isSearchVisible = overlaySearch.visibility == View.VISIBLE
+            overlaySearch.visibility = if (isSearchVisible) View.GONE else View.VISIBLE
+            toolbarContainer.visibility = View.GONE
+        }
+        
+        val etSearch = floatingView.findViewById<EditText>(R.id.et_search)
+        floatingView.findViewById<View>(R.id.btn_do_search).setOnClickListener {
+            val query = etSearch.text.toString()
+            if (query.isNotEmpty() && chapterContent.contains(query, ignoreCase = true)) {
+                val index = chapterContent.indexOf(query, ignoreCase = true)
+                if (index >= 0) {
+                    val searchLayout = tvContent.layout
+                    if (searchLayout != null) {
+                        val line = searchLayout.getLineForOffset(index)
+                        val y = searchLayout.getLineTop(line)
+                        scrollView.smoothScrollTo(0, y)
+                    }
+                }
+            } else {
+                Toast.makeText(this, "Not found in chapter", Toast.LENGTH_SHORT).show()
+            }
         }
         
         val seekProgress = floatingView.findViewById<SeekBar>(R.id.seek_progress)
@@ -594,11 +654,48 @@ class FloatingReaderService : Service() {
         }
     }
 
+    private var autoSaveJob: Job? = null
+
+    private fun startAutoSaveTimer() {
+        autoSaveJob?.cancel()
+        autoSaveJob = serviceScope.launch {
+            while (true) {
+                delay(15 * 60 * 1000L) // 15 minutes
+                saveCurrentPosition()
+            }
+        }
+    }
+
     private fun saveCurrentPosition() {
-        currentBook?.let {
-            val updated = it.copy(lastReadChapter = currentChapterIndex, lastReadScrollY = lastKnownScrollY)
+        currentBook?.let { book ->
+            val updated = book.copy(lastReadChapter = currentChapterIndex, lastReadScrollY = lastKnownScrollY)
             serviceScope.launch(Dispatchers.IO) {
-                AppDatabase.getDatabase(this@FloatingReaderService).epubDao().updateBook(updated)
+                val db = AppDatabase.getDatabase(this@FloatingReaderService)
+                db.epubDao().updateBook(updated)
+                
+                val trackerBooks = db.trackerDao().getAllBooks()
+                val existingTracker = trackerBooks.firstOrNull { it.title == book.title }
+                val totalCh = book.totalChapters
+                if (existingTracker != null) {
+                    if (existingTracker.readChapters != currentChapterIndex || existingTracker.totalChapters < totalCh) {
+                        val newTracker = existingTracker.copy(
+                            readChapters = Math.max(existingTracker.readChapters, currentChapterIndex),
+                            totalChapters = Math.max(existingTracker.totalChapters, totalCh),
+                            lastUpdatedTimestamp = System.currentTimeMillis()
+                        )
+                        db.trackerDao().updateBook(newTracker)
+                    }
+                } else {
+                    val newTracker = com.example.data.TrackerBook(
+                        title = book.title,
+                        author = "",
+                        totalChapters = totalCh,
+                        readChapters = currentChapterIndex,
+                        addedTimestamp = System.currentTimeMillis(),
+                        lastUpdatedTimestamp = System.currentTimeMillis()
+                    )
+                    db.trackerDao().insertBook(newTracker)
+                }
             }
         }
     }

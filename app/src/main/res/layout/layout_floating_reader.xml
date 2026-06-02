@@ -88,9 +88,12 @@
             <!-- Container for Chapter List Overlay (Hidden by Default) -->
             <FrameLayout
                 android:id="@+id/overlay_chapters"
-                android:layout_width="match_parent"
+                android:layout_width="200dp"
                 android:layout_height="match_parent"
-                android:background="#222222"
+                android:layout_gravity="start"
+                android:background="#E6222222"
+                android:elevation="8dp"
+                android:clickable="true"
                 android:visibility="gone">
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/list_chapters"
@@ -177,8 +180,9 @@
                             android:layout_width="48dp"
                             android:layout_height="48dp"
                             android:layout_marginBottom="8dp"
-                            android:background="@android:drawable/btn_default"
-                            android:src="@android:drawable/ic_menu_sort_by_size" />
+                            android:background="@android:color/transparent"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/ic_fab_tracker_game" />
                             
                         <!-- Continue Reading FAB -->
                         <ImageButton
@@ -186,16 +190,18 @@
                             android:layout_width="48dp"
                             android:layout_height="48dp"
                             android:layout_marginBottom="8dp"
-                            android:background="@android:drawable/btn_default"
-                            android:src="@android:drawable/ic_media_play" />
+                            android:background="@android:color/transparent"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/ic_fab_continue_game" />
                             
                         <!-- Add Book FAB -->
                         <ImageButton
                             android:id="@+id/fab_add_book"
                             android:layout_width="56dp"
                             android:layout_height="56dp"
-                            android:background="@android:drawable/btn_default"
-                            android:src="@android:drawable/ic_input_add" />
+                            android:background="@android:color/transparent"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/ic_fab_add_game" />
                     </LinearLayout>
                 </FrameLayout>
             </LinearLayout>
@@ -223,10 +229,43 @@
                         <Switch android:id="@+id/switch_bookmarks" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Enable Bookmarks UI" android:textColor="#CCC" android:paddingVertical="8dp"/>
                         <Switch android:id="@+id/switch_theme" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Light Theme" android:textColor="#CCC" android:paddingVertical="8dp"/>
                         
+                        <Button android:id="@+id/btn_backup_data" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Backup App Data (No Books)" android:layout_marginTop="16dp"/>
+                        <Button android:id="@+id/btn_backup_data_books" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Backup App Data (With Books)" android:layout_marginTop="8dp"/>
+                        <Button android:id="@+id/btn_restore_data" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Restore App Data" android:layout_marginTop="8dp"/>
+                        
                         <Button android:id="@+id/btn_export_logs" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Export Logs" android:layout_marginTop="24dp"/>
                     </LinearLayout>
                 </ScrollView>
             </FrameLayout>
+
+            <!-- Search Overlay -->
+            <LinearLayout
+                android:id="@+id/overlay_search"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top"
+                android:orientation="horizontal"
+                android:background="#E6222222"
+                android:gravity="center_vertical"
+                android:padding="8dp"
+                android:visibility="gone">
+                <EditText
+                    android:id="@+id/et_search"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:hint="Search chapter..."
+                    android:textColorHint="#888888"
+                    android:textColor="#FFFFFF"
+                    android:backgroundTint="#888888"
+                    android:singleLine="true" />
+                <Button
+                    android:id="@+id/btn_do_search"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Find"
+                    android:layout_marginStart="8dp" />
+            </LinearLayout>
 
             <!-- Toggleable Toolbar (Moonreader style) -->
             <LinearLayout
