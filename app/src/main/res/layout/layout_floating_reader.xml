@@ -109,12 +109,13 @@
                     android:clipToPadding="false"
                     android:paddingTop="8dp"
                     android:paddingBottom="80dp"/>
-                <com.google.android.material.floatingactionbutton.FloatingActionButton
+                <ImageButton
                     android:id="@+id/fab_add_book"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
                     android:layout_gravity="bottom|end"
                     android:layout_margin="16dp"
+                    android:background="@android:drawable/btn_default"
                     android:src="@android:drawable/ic_input_add" />
             </FrameLayout>
 
