@@ -45,9 +45,21 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        val prefs = getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+        val firstLaunch = prefs.getBoolean("first_launch", true)
+        
         // Skip welcome if opening a file or picking a file
         if (intent.action == Intent.ACTION_VIEW || intent.getBooleanExtra("PICK_EPUB", false)) {
             handleIntent(intent)
+            return
+        }
+
+        if (!firstLaunch && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.canDrawOverlays(this)) {
+            val svcIntent = Intent(this@MainActivity, FloatingReaderService::class.java).apply {
+                putExtra("OPEN_FROM_LAUNCHER", true)
+            }
+            androidx.core.content.ContextCompat.startForegroundService(this, svcIntent)
+            finishAndRemoveTask()
             return
         }
 
@@ -59,6 +71,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     WelcomeScreen(
                         onContinue = {
+                            prefs.edit().putBoolean("first_launch", false).apply()
                             handleIntent(intent)
                         }
                     )

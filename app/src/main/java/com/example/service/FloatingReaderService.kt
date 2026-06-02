@@ -32,7 +32,7 @@ class FloatingReaderService : Service() {
     private lateinit var scrollView: ScrollView
     private lateinit var tvProgress: TextView
     private lateinit var toolbarContainer: View
-    private lateinit var bubbleIcon: ImageView
+    private lateinit var bubbleIcon: TextView
     private lateinit var windowContainer: View
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
@@ -172,6 +172,26 @@ class FloatingReaderService : Service() {
         tvProgress = floatingView.findViewById(R.id.tv_progress)
         toolbarContainer = floatingView.findViewById(R.id.toolbar_container)
         bubbleIcon = floatingView.findViewById(R.id.bubble_icon)
+        
+        var startY = 0f
+        scrollView.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    startY = event.y
+                }
+                MotionEvent.ACTION_UP -> {
+                    val endY = event.y
+                    val dy = startY - endY 
+                    
+                    if (dy > 150 && !scrollView.canScrollVertically(1)) {
+                        navigateChapter(1)
+                    } else if (dy < -150 && !scrollView.canScrollVertically(-1)) {
+                        navigateChapter(-1)
+                    }
+                }
+            }
+            false
+        }
         windowContainer = floatingView.findViewById(R.id.window_container)
         btnTts = floatingView.findViewById(R.id.btn_tts)
 
@@ -658,6 +678,19 @@ class FloatingReaderService : Service() {
             layoutParams.width = savedWindowWidth
             layoutParams.height = savedWindowHeight
             layoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+            
+            val metrics = resources.displayMetrics
+            val maxW = metrics.widthPixels
+            val maxH = metrics.heightPixels
+            if (layoutParams.x + layoutParams.width > maxW) {
+                layoutParams.x = maxW - layoutParams.width
+            }
+            if (layoutParams.x < 0) layoutParams.x = 0
+            
+            if (layoutParams.y + layoutParams.height > maxH) {
+                layoutParams.y = maxH - layoutParams.height
+            }
+            if (layoutParams.y < 0) layoutParams.y = 0
         }
         windowManager.updateViewLayout(floatingView, layoutParams)
     }
