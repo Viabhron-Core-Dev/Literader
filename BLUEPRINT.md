@@ -42,13 +42,14 @@ System is fully rebuilt from scratch post-workspace wipe. Ready for deployment.
 - [x] When enabled, dynamically change the "Imported" Library tab to "File Explorer" which recursively loads visible EPUB/TXT files right from external shared folders using `DocumentFile`.
 - [x] Hook tap-to-read from File Explorer directly to the `LibraryRepository.importBook()` pathway (populating the DB/Recent cache).
 
+### Phase 9: UI Visual Styling
+- [x] Condensed Navigation Toolbar (shrunk sizing and reduced padding gaps).
+- [x] Folded Bubble Icon styled as purple 'v' icon over a grey circle with 70% transparency (`alpha=0.3`) for underlying readability.
+
 ### Progress Update
-* Blueprint Status: Phase 8
+* Blueprint Status: Phase 9
 * Files Synchronized:
-  - `MainActivity.kt`: Bound `ActivityResultContracts.OpenDocumentTree()` to handle external folder access and persisting URI permissions.
-  - `layout_floating_reader.xml`: Added `.switch_scoped_dir` toggle and `.btn_pick_dir` button in the Settings overlay.
-  - `build.gradle.kts`: Added `androidx.documentfile:documentfile` library.
-  - `FloatingReaderService.kt`: Intercepted Library tab rendering (`loadLibraryBooks`), added conditional `DocumentFile` traversal, and deployed `FileAdapter` specifically tailored for parsing and rapid importing.
-* Next Action: Test external EPUB folder traversal.
+  - `layout_floating_reader.xml`: Shrunk toolbar icons to 32dp, condensed padding. Updated `bubble_icon` to use `#9C27B0` text color and `alpha="0.3"`.
+* Next Action: Monitor user feedback on readability and navigation density.
 
 
