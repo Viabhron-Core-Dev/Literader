@@ -229,6 +229,9 @@
                         <Switch android:id="@+id/switch_bookmarks" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Enable Bookmarks UI" android:textColor="#CCC" android:paddingVertical="8dp"/>
                         <Switch android:id="@+id/switch_theme" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Light Theme" android:textColor="#CCC" android:paddingVertical="8dp"/>
                         
+                        <Switch android:id="@+id/switch_scoped_dir" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Use Scoped Directory (File Explorer)" android:textColor="#CCC" android:paddingVertical="8dp"/>
+                        <Button android:id="@+id/btn_pick_dir" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Select Directory" android:layout_marginTop="4dp" android:visibility="gone"/>
+                        
                         <Button android:id="@+id/btn_backup_data" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Backup App Data (No Books)" android:layout_marginTop="16dp"/>
                         <Button android:id="@+id/btn_backup_data_books" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Backup App Data (With Books)" android:layout_marginTop="8dp"/>
                         <Button android:id="@+id/btn_restore_data" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Restore App Data" android:layout_marginTop="8dp"/>
@@ -342,13 +345,13 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="4dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="0dp"
                     android:paddingStart="4dp"
-                    android:paddingEnd="12dp">
+                    android:paddingEnd="8dp">
                     
                     <ImageView android:id="@+id/btn_prev"
-                        android:layout_width="40dp" android:layout_height="40dp" android:padding="12dp"
+                        android:layout_width="32dp" android:layout_height="32dp" android:padding="8dp"
                         android:src="@android:drawable/ic_media_previous" android:tint="#AAAAAA" />
                     
                     <SeekBar
@@ -367,11 +370,12 @@
                         android:textColor="#FFFFFF"
                         android:textSize="14sp"
                         android:textStyle="bold"
-                        android:layout_marginStart="8dp"
+                        android:layout_marginStart="4dp"
+                        android:layout_marginEnd="4dp"
                         android:text="82%" />
                         
                     <ImageView android:id="@+id/btn_next"
-                        android:layout_width="40dp" android:layout_height="40dp" android:padding="12dp"
+                        android:layout_width="32dp" android:layout_height="32dp" android:padding="8dp"
                         android:src="@android:drawable/ic_media_next" android:tint="#AAAAAA" />
                 </LinearLayout>
 
@@ -381,8 +385,8 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center"
-                    android:paddingBottom="8dp"
-                    android:paddingTop="4dp">
+                    android:paddingBottom="4dp"
+                    android:paddingTop="0dp">
 
                     <ImageView android:id="@+id/btn_library"
                         android:layout_width="0dp" android:layout_weight="1" android:layout_height="36dp" android:padding="6dp"

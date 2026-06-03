@@ -53,4 +53,5 @@ dependencies {
     
     // UI
     implementation("androidx.recyclerview:recyclerview:1.3.2")
+    implementation("androidx.documentfile:documentfile:1.0.1")
 }

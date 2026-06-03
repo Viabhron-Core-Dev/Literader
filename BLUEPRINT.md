@@ -32,9 +32,23 @@ System is fully rebuilt from scratch post-workspace wipe. Ready for deployment.
 - [x] Stream dynamically mapped text snippets (+Character Offsets) to a floating `overlay_search_results` FrameLayout.
 - [x] Implement robust one-tap context jumps (`loadAndJumpToOffset`) without taxing memory overhead limits.
 
+### Phase 7: UX/Navigation Refinements
+- [x] Pull-down gesture to go to previous chapter jumps to bottom of the content.
+- [x] Folded icon retains original X/Y drag position upon fold (prevent shifting to expanded corners).
+
+### Phase 8: File Explorer Tab (Scoped Directory)
+- [x] In the Floating Service's Settings, add an optional Switch for "Scoped Directory (File Explorer)".
+- [x] Enable users to grant `ACTION_OPEN_DOCUMENT_TREE` permissions from `MainActivity` via a "Select Directory" button.
+- [x] When enabled, dynamically change the "Imported" Library tab to "File Explorer" which recursively loads visible EPUB/TXT files right from external shared folders using `DocumentFile`.
+- [x] Hook tap-to-read from File Explorer directly to the `LibraryRepository.importBook()` pathway (populating the DB/Recent cache).
+
 ### Progress Update
-* Blueprint Status: Phase 6
+* Blueprint Status: Phase 8
 * Files Synchronized:
-  - `layout_floating_reader.xml`: Replaced chapter search with toggles for both Search Chapter and Search Full Book. Added search results FrameLayout overlay.
-  - `FloatingReaderService.kt`: Added `performFullBookSearch` with Dispatchers.IO coroutine to sequentially parse EPUB splits; injected `loadAndJumpToOffset`.
-* Next Action: Testing stability and visual UI offsets when jumping.
+  - `MainActivity.kt`: Bound `ActivityResultContracts.OpenDocumentTree()` to handle external folder access and persisting URI permissions.
+  - `layout_floating_reader.xml`: Added `.switch_scoped_dir` toggle and `.btn_pick_dir` button in the Settings overlay.
+  - `build.gradle.kts`: Added `androidx.documentfile:documentfile` library.
+  - `FloatingReaderService.kt`: Intercepted Library tab rendering (`loadLibraryBooks`), added conditional `DocumentFile` traversal, and deployed `FileAdapter` specifically tailored for parsing and rapid importing.
+* Next Action: Test external EPUB folder traversal.
+
+

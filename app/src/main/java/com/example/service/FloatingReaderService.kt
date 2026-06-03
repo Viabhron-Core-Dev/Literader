@@ -23,6 +23,8 @@ import android.text.style.*
 import android.graphics.Color
 import java.util.Locale
 import kotlin.math.max
+import androidx.documentfile.provider.DocumentFile
+import android.net.Uri
 
 class FloatingReaderService : Service() {
     private lateinit var windowManager: WindowManager
@@ -50,6 +52,8 @@ class FloatingReaderService : Service() {
     private var initialY = 0
     private var initialTouchX = 0f
     private var initialTouchY = 0f
+    private var foldedX = 0
+    private var foldedY = 0
 
     private lateinit var prefs: SharedPreferences
     private lateinit var tts: TextToSpeech
@@ -198,7 +202,7 @@ class FloatingReaderService : Service() {
                         if (dy > 150 && !scrollView.canScrollVertically(1)) {
                             navigateChapter(1)
                         } else if (dy < -150 && !scrollView.canScrollVertically(-1)) {
-                            navigateChapter(-1)
+                            navigateChapter(-1, scrollToBottom = true)
                         }
                     } else if (dt < 200 && Math.abs(dy) < 30 && Math.abs(dx) < 30) {
                         // Tap
@@ -254,6 +258,36 @@ class FloatingReaderService : Service() {
     private var currentLibraryTab = "Recent"
 
     private fun loadLibraryBooks() {
+        val useScopedDir = prefs.getBoolean("use_scoped_dir", false)
+        val btnRecent = floatingView.findViewById<Button>(R.id.btn_tab_recent)
+        val btnImported = floatingView.findViewById<Button>(R.id.btn_tab_imported)
+
+        if (useScopedDir) {
+            btnImported.text = "File Explorer"
+        } else {
+            btnImported.text = "Imported"
+        }
+
+        if (currentLibraryTab == "Imported" && useScopedDir) {
+             val uriStr = prefs.getString("scoped_directory_uri", null)
+             if (uriStr != null) {
+                 btnRecent.setTextColor(android.graphics.Color.GRAY)
+                 btnImported.setTextColor(android.graphics.Color.WHITE)
+                 serviceScope.launch(Dispatchers.IO) {
+                     val uri = Uri.parse(uriStr)
+                     val dirFile = DocumentFile.fromTreeUri(this@FloatingReaderService, uri)
+                     val files = dirFile?.listFiles()?.filter { it.name?.endsWith(".epub", true) == true || it.name?.endsWith(".txt", true) == true } ?: emptyList()
+                     withContext(Dispatchers.Main) {
+                         listLibrary.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this@FloatingReaderService)
+                         listLibrary.adapter = FileAdapter(files)
+                     }
+                 }
+             } else {
+                 Toast.makeText(this, "Please select a directory in Settings first", Toast.LENGTH_SHORT).show()
+             }
+             return
+        }
+
         serviceScope.launch(Dispatchers.IO) {
             val db = AppDatabase.getDatabase(this@FloatingReaderService)
             val books = if (currentLibraryTab == "Recent") {
@@ -265,8 +299,6 @@ class FloatingReaderService : Service() {
                 listLibrary.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this@FloatingReaderService)
                 listLibrary.adapter = LibraryAdapter(books)
                 
-                val btnRecent = floatingView.findViewById<Button>(R.id.btn_tab_recent)
-                val btnImported = floatingView.findViewById<Button>(R.id.btn_tab_imported)
                 if (currentLibraryTab == "Recent") {
                     btnRecent.setTextColor(android.graphics.Color.WHITE)
                     btnImported.setTextColor(android.graphics.Color.GRAY)
@@ -499,6 +531,29 @@ class FloatingReaderService : Service() {
             // Stub for bookmarks feature enablement
         }
         
+        val switchScoped = floatingView.findViewById<Switch>(R.id.switch_scoped_dir)
+        val btnPickDir = floatingView.findViewById<Button>(R.id.btn_pick_dir)
+        switchScoped?.isChecked = prefs.getBoolean("use_scoped_dir", false)
+        btnPickDir?.visibility = if (switchScoped?.isChecked == true) View.VISIBLE else View.GONE
+        
+        switchScoped?.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("use_scoped_dir", isChecked).apply()
+            btnPickDir?.visibility = if (isChecked) View.VISIBLE else View.GONE
+            // reload library text if currently in library
+            if (overlayLibrary.visibility == View.VISIBLE) {
+                loadLibraryBooks()
+            }
+        }
+        
+        btnPickDir?.setOnClickListener {
+            // Send intent to MainActivity to pick directory
+            val intent = Intent(this@FloatingReaderService, com.example.MainActivity::class.java).apply {
+                putExtra("PICK_DIRECTORY", true)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        }
+        
         floatingView.findViewById<Switch>(R.id.switch_theme)?.setOnCheckedChangeListener { _, isChecked ->
             // Basic theme mock logic
             val bgColor = if (isChecked) android.graphics.Color.WHITE else android.graphics.Color.parseColor("#222222")
@@ -616,7 +671,7 @@ class FloatingReaderService : Service() {
         }
     }
 
-    private fun loadChapterText() {
+    private fun loadChapterText(scrollToBottom: Boolean = false) {
         val book = currentBook ?: return
         serviceScope.launch(Dispatchers.IO) {
             val bookDir = File(filesDir, "book_${book.id}")
@@ -625,18 +680,18 @@ class FloatingReaderService : Service() {
                 val text = chapterFile.readText()
                 withContext(Dispatchers.Main) {
                     chapterContent = text
-                    renderChapter(book.lastReadScrollY)
+                    renderChapter(book.lastReadScrollY, scrollToBottom)
                 }
             } else {
                 withContext(Dispatchers.Main) {
                     chapterContent = "Chapter content not found."
-                    renderChapter(0)
+                    renderChapter(0, scrollToBottom)
                 }
             }
         }
     }
 
-    private fun renderChapter(scrollY: Int) {
+    private fun renderChapter(scrollY: Int, scrollToBottom: Boolean = false) {
         val book = currentBook ?: return
         tvWindowTitle.text = "${book.title} (Ch ${currentChapterIndex + 1}/${book.totalChapters})"
         
@@ -651,11 +706,17 @@ class FloatingReaderService : Service() {
         floatingView.findViewById<SeekBar>(R.id.seek_progress)?.progress = percent
         
         scrollView.post {
-            scrollView.scrollTo(0, scrollY)
+            if (scrollToBottom) {
+                // Scroll to bottom
+                val maxScroll = Math.max(0, scrollView.getChildAt(0).height - scrollView.height)
+                scrollView.scrollTo(0, maxScroll)
+            } else {
+                scrollView.scrollTo(0, scrollY)
+            }
         }
     }
 
-    private fun navigateChapter(offset: Int) {
+    private fun navigateChapter(offset: Int, scrollToBottom: Boolean = false) {
         currentBook?.let { book ->
             val newIndex = currentChapterIndex + offset
             if (newIndex in 0 until book.totalChapters) {
@@ -664,7 +725,7 @@ class FloatingReaderService : Service() {
                 // aggressively update db memory
                 val updated = book.copy(lastReadChapter = newIndex, lastReadScrollY = 0)
                 currentBook = updated
-                loadChapterText()
+                loadChapterText(scrollToBottom)
             }
         }
     }
@@ -861,6 +922,53 @@ class FloatingReaderService : Service() {
         }
     }
 
+    private inner class FileAdapter(var files: List<DocumentFile>) : androidx.recyclerview.widget.RecyclerView.Adapter<FileAdapter.FileViewHolder>() {
+        
+        inner class FileViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
+            val tvTitle: TextView = view.findViewById(R.id.tv_title)
+            val tvSub: TextView = view.findViewById(R.id.tv_subtitle)
+            val btnMore: ImageView = view.findViewById(R.id.btn_more)
+            init {
+                view.setOnClickListener {
+                    val pos = adapterPosition
+                    if (pos != androidx.recyclerview.widget.RecyclerView.NO_POSITION) {
+                        val file = files[pos]
+                        // Try importing it if not already in db, then open
+                        Toast.makeText(this@FloatingReaderService, "Importing ${file.name}...", Toast.LENGTH_SHORT).show()
+                        serviceScope.launch(Dispatchers.IO) {
+                            val repo = com.example.data.LibraryRepository(this@FloatingReaderService)
+                            val book = repo.importBook(file.uri)
+                            withContext(Dispatchers.Main) {
+                                if (book != null) {
+                                    loadBook(book.id)
+                                    hideOverlays()
+                                } else {
+                                    Toast.makeText(this@FloatingReaderService, "Failed to import", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    }
+                }
+                btnMore.setOnClickListener {
+                    // Action for more on file? Maybe delete physically? 
+                }
+            }
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FileViewHolder {
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_library_book, parent, false)
+            return FileViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: FileViewHolder, position: Int) {
+            val file = files[position]
+            holder.tvTitle.text = file.name ?: "Unknown"
+            holder.tvSub.text = "File Explorer"
+        }
+
+        override fun getItemCount() = files.size
+    }
+
     private inner class LibraryAdapter(var books: List<com.example.data.EpubBook>) : androidx.recyclerview.widget.RecyclerView.Adapter<LibraryAdapter.LibraryViewHolder>() {
         
         inner class LibraryViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
@@ -958,8 +1066,17 @@ class FloatingReaderService : Service() {
             layoutParams.width = WindowManager.LayoutParams.WRAP_CONTENT
             layoutParams.height = WindowManager.LayoutParams.WRAP_CONTENT
             layoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+            
+            // Restore bubble position
+            layoutParams.x = foldedX
+            layoutParams.y = foldedY
+            
             isAutoScrolling = false // pause scroll
         } else {
+            // Save bubble position before expanding
+            foldedX = layoutParams.x
+            foldedY = layoutParams.y
+
             bubbleIcon.visibility = View.GONE
             windowContainer.visibility = View.VISIBLE
             toolbarContainer.visibility = View.GONE

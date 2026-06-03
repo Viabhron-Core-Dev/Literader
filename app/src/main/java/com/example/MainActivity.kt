@@ -42,6 +42,24 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val directoryPicker = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) {
+            try {
+                val takeFlags: Int = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                contentResolver.takePersistableUriPermission(uri, takeFlags)
+                val prefs = getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+                prefs.edit().putString("scoped_directory_uri", uri.toString()).apply()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        val intent = Intent(this@MainActivity, FloatingReaderService::class.java).apply {
+            putExtra("OPEN_FROM_LAUNCHER", true)
+        }
+        androidx.core.content.ContextCompat.startForegroundService(this@MainActivity, intent)
+        finishAndRemoveTask()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -114,6 +132,11 @@ class MainActivity : ComponentActivity() {
 
         if (intent.getBooleanExtra("PICK_EPUB", false)) {
             multiPicker.launch("application/epub+zip")
+            return
+        }
+
+        if (intent.getBooleanExtra("PICK_DIRECTORY", false)) {
+            directoryPicker.launch(null)
             return
         }
 
