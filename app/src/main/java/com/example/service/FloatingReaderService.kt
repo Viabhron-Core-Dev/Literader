@@ -18,6 +18,9 @@ import com.example.data.EpubBook
 import com.example.util.AppLogger
 import kotlinx.coroutines.*
 import java.io.File
+import android.text.*
+import android.text.style.*
+import android.graphics.Color
 import java.util.Locale
 import kotlin.math.max
 
@@ -445,6 +448,18 @@ class FloatingReaderService : Service() {
             }
         }
         
+        floatingView.findViewById<View>(R.id.btn_close_search_results)?.setOnClickListener {
+            floatingView.findViewById<View>(R.id.overlay_search_results).visibility = View.GONE
+            searchJob?.cancel()
+        }
+
+        floatingView.findViewById<View>(R.id.btn_do_search_full)?.setOnClickListener {
+            val query = etSearch.text.toString()
+            if (query.isNotEmpty()) {
+                performFullBookSearch(query)
+            }
+        }
+        
         val seekProgress = floatingView.findViewById<SeekBar>(R.id.seek_progress)
         seekProgress.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -655,6 +670,133 @@ class FloatingReaderService : Service() {
     }
 
     private var autoSaveJob: Job? = null
+    private var searchJob: Job? = null
+
+    private fun performFullBookSearch(query: String) {
+        val book = currentBook ?: return
+        
+        val overlayResults = floatingView.findViewById<FrameLayout>(R.id.overlay_search_results)
+        val tvStatus = floatingView.findViewById<TextView>(R.id.tv_search_status)
+        val llResults = floatingView.findViewById<LinearLayout>(R.id.ll_search_results)
+        
+        overlayResults.visibility = View.VISIBLE
+        llResults.removeAllViews()
+        tvStatus.text = "Searching..."
+        
+        searchJob?.cancel()
+        searchJob = serviceScope.launch(Dispatchers.IO) {
+            val bookDir = File(filesDir, "book_${book.id}")
+            var matchCount = 0
+            
+            for (i in 0 until book.totalChapters) {
+                if (!isActive) break // Canceled
+                
+                withContext(Dispatchers.Main) {
+                    tvStatus.text = "Searching chapter ${i+1}/${book.totalChapters}..."
+                }
+                
+                val chapterFile = File(bookDir, "chapter_$i.txt")
+                if (chapterFile.exists()) {
+                    val text = chapterFile.readText()
+                    var startIndex = 0
+                    while (startIndex < text.length) {
+                        val index = text.indexOf(query, startIndex, ignoreCase = true)
+                        if (index == -1) break
+                        
+                        matchCount++
+                        if (matchCount > 500) break // Cap results
+                        
+                        val snippetStart = max(0, index - 40)
+                        val snippetEnd = minOf(text.length, index + query.length + 40)
+                        val snippetStr = text.substring(snippetStart, snippetEnd)
+                            .replace("\n", " ").trim()
+                            
+                        // Show result on main thread immediately
+                        withContext(Dispatchers.Main) {
+                            val tvResult = TextView(this@FloatingReaderService).apply {
+                                setPadding(24, 24, 24, 24)
+                                setTextColor(Color.LTGRAY)
+                                textSize = 14f
+                                
+                                val spannable = SpannableString("Ch ${i+1}: ...$snippetStr...")
+                                // Highlight query string inside the snippet
+                                val colorSpanStart = spannable.indexOf(query, ignoreCase = true)
+                                if (colorSpanStart >= 0) {
+                                    val colorSpanEnd = colorSpanStart + query.length
+                                    spannable.setSpan(BackgroundColorSpan(Color.parseColor("#880099CC")), colorSpanStart, colorSpanEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                                }
+                                setText(spannable)
+                                
+                                setBackgroundResource(android.R.drawable.list_selector_background)
+                                isClickable = true
+                                isFocusable = true
+                                setOnClickListener {
+                                    overlayResults.visibility = View.GONE
+                                    floatingView.findViewById<View>(R.id.overlay_search).visibility = View.GONE
+                                    loadAndJumpToOffset(i, index)
+                                }
+                            }
+                            llResults.addView(tvResult)
+                            
+                            val divider = View(this@FloatingReaderService).apply {
+                                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 2)
+                                setBackgroundColor(Color.DKGRAY)
+                            }
+                            llResults.addView(divider)
+                        }
+                        
+                        startIndex = index + query.length
+                    }
+                }
+                
+                if (matchCount > 500) break
+            }
+            
+            withContext(Dispatchers.Main) {
+                if (isActive) {
+                    if (matchCount == 0) {
+                        tvStatus.text = "No results found."
+                    } else {
+                        tvStatus.text = "Found $matchCount results."
+                    }
+                }
+            }
+        }
+    }
+
+    private fun loadAndJumpToOffset(targetChapterIndex: Int, textOffset: Int) {
+        val book = currentBook ?: return
+        serviceScope.launch(Dispatchers.IO) {
+            val bookDir = File(filesDir, "book_${book.id}")
+            val chapterFile = File(bookDir, "chapter_$targetChapterIndex.txt")
+            if (chapterFile.exists()) {
+                val text = chapterFile.readText()
+                withContext(Dispatchers.Main) {
+                    currentChapterIndex = targetChapterIndex
+                    chapterContent = text
+                    tvWindowTitle.text = "${book.title} (Ch ${currentChapterIndex + 1}/${book.totalChapters})"
+                    tvContent.text = chapterContent
+                    
+                    val percent = if (book.totalChapters > 1) {
+                        (currentChapterIndex * 100) / (book.totalChapters - 1)
+                    } else 100
+                    tvProgress.text = "$percent%"
+                    floatingView.findViewById<SeekBar>(R.id.seek_progress)?.progress = percent
+                    
+                    // Post to wait for layout
+                    scrollView.postDelayed({
+                        val searchLayout = tvContent.layout
+                        if (searchLayout != null) {
+                            val line = searchLayout.getLineForOffset(textOffset)
+                            val y = searchLayout.getLineTop(line)
+                            scrollView.scrollTo(0, y)
+                            saveCurrentPosition()
+                        }
+                    }, 50)
+                }
+            }
+        }
+    }
 
     private fun startAutoSaveTimer() {
         autoSaveJob?.cancel()

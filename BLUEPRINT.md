@@ -26,11 +26,15 @@ A lightweight, offline-first minimal EPUB reader designed as a floating overlay 
 ## Active State
 System is fully rebuilt from scratch post-workspace wipe. Ready for deployment.
 
+### Phase 6: Headless Full Book Search
+- [x] Integrate 'Full Book Search' button into Floating Reader search overlay.
+- [x] Create a headless `searchJob` tracking worker natively iterating through sequential read logic.
+- [x] Stream dynamically mapped text snippets (+Character Offsets) to a floating `overlay_search_results` FrameLayout.
+- [x] Implement robust one-tap context jumps (`loadAndJumpToOffset`) without taxing memory overhead limits.
+
 ### Progress Update
-* Blueprint Status: Phase 5
+* Blueprint Status: Phase 6
 * Files Synchronized:
-  - `layout_floating_reader.xml`: Added dynamic FrameLayout overlays for Library, Chapters, Settings. Added minimize icon, and new UI files.
-  - `item_library_book.xml & item_chapter.xml`: List templates for Recyclerviews.
-  - `FloatingReaderService.kt`: Added `LibraryAdapter` and `ChapterAdapter`, switching visibility states without closing overlay `view_container`. Added real DB linkage.
-  - `MainActivity.kt`: Removed full-screen library Compose Activity. Routes `PICK_EPUB` strictly.
-* Next Action: Test internal navigation flow (Library <-> Settings <-> Reader).
+  - `layout_floating_reader.xml`: Replaced chapter search with toggles for both Search Chapter and Search Full Book. Added search results FrameLayout overlay.
+  - `FloatingReaderService.kt`: Added `performFullBookSearch` with Dispatchers.IO coroutine to sequentially parse EPUB splits; injected `loadAndJumpToOffset`.
+* Next Action: Testing stability and visual UI offsets when jumping.
