@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center"
+    android:paddingTop="16dp"
+    android:paddingBottom="48dp"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+    
+    <ImageButton
+        android:id="@+id/fab_continue"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginEnd="16dp"
+        android:background="@android:color/transparent"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_fab_continue_game" />
+        
+    <ImageButton
+        android:id="@+id/fab_add_book"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:background="@android:color/transparent"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_fab_add_game" />
+</LinearLayout>

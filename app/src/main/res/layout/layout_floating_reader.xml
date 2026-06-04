@@ -122,12 +122,30 @@
                     android:gravity="center_vertical"
                     android:paddingHorizontal="16dp">
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:layout_weight="1"
                         android:text="LiteReader Library"
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="#FFFFFF" />
+                        
+                    <ImageButton
+                        android:id="@+id/btn_library_tracker"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:background="@android:color/transparent"
+                        android:src="@drawable/ic_fab_tracker_game"
+                        android:scaleType="fitCenter"
+                        android:layout_marginEnd="16dp" />
+                        
+                    <ImageButton
+                        android:id="@+id/btn_library_settings"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:background="@android:color/transparent"
+                        android:src="@android:drawable/ic_menu_preferences"
+                        android:scaleType="fitCenter" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -163,47 +181,7 @@
                         android:layout_height="match_parent"
                         android:clipToPadding="false"
                         android:paddingTop="8dp"
-                        android:paddingBottom="80dp"/>
-
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="bottom|end"
-                        android:layout_margin="16dp"
-                        android:orientation="vertical"
-                        android:gravity="center_horizontal"
-                        android:clipChildren="false"
-                        android:clipToPadding="false">
-
-                        <!-- Tracker FAB -->
-                        <ImageButton
-                            android:id="@+id/fab_tracker"
-                            android:layout_width="48dp"
-                            android:layout_height="48dp"
-                            android:layout_marginBottom="8dp"
-                            android:background="@android:color/transparent"
-                            android:scaleType="fitCenter"
-                            android:src="@drawable/ic_fab_tracker_game" />
-                            
-                        <!-- Continue Reading FAB -->
-                        <ImageButton
-                            android:id="@+id/fab_continue"
-                            android:layout_width="48dp"
-                            android:layout_height="48dp"
-                            android:layout_marginBottom="8dp"
-                            android:background="@android:color/transparent"
-                            android:scaleType="fitCenter"
-                            android:src="@drawable/ic_fab_continue_game" />
-                            
-                        <!-- Add Book FAB -->
-                        <ImageButton
-                            android:id="@+id/fab_add_book"
-                            android:layout_width="56dp"
-                            android:layout_height="56dp"
-                            android:background="@android:color/transparent"
-                            android:scaleType="fitCenter"
-                            android:src="@drawable/ic_fab_add_game" />
-                    </LinearLayout>
+                        android:paddingBottom="16dp"/>
                 </FrameLayout>
             </LinearLayout>
 
@@ -222,7 +200,29 @@
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
                         android:padding="16dp">
-                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Settings" android:textColor="#FFF" android:textSize="20sp" android:textStyle="bold" android:layout_marginBottom="16dp"/>
+                        
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="16dp">
+                            <ImageButton
+                                android:id="@+id/btn_settings_back"
+                                android:layout_width="32dp"
+                                android:layout_height="32dp"
+                                android:background="@android:color/transparent"
+                                android:src="@android:drawable/ic_menu_revert"
+                                android:scaleType="fitCenter" />
+                            <TextView 
+                                android:layout_width="wrap_content" 
+                                android:layout_height="wrap_content" 
+                                android:text="Settings" 
+                                android:textColor="#FFF" 
+                                android:textSize="20sp" 
+                                android:textStyle="bold"
+                                android:layout_marginStart="16dp"/>
+                        </LinearLayout>
                         
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Font Size" android:textColor="#CCC" android:layout_marginTop="8dp"/>
                         <SeekBar android:id="@+id/seek_font_size" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="40" android:progress="18" android:paddingTop="8dp" android:paddingBottom="16dp"/>

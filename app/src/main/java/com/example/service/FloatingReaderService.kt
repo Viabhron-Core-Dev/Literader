@@ -245,6 +245,34 @@ class FloatingReaderService : Service() {
         }
 
         startAutoSaveTimer()
+        
+        // Auto-sync all library books to Tracker
+        serviceScope.launch(Dispatchers.IO) {
+            val db = AppDatabase.getDatabase(this@FloatingReaderService)
+            val allEpubs = db.epubDao().getAllBooks()
+            val trackerBooks = db.trackerDao().getAllBooks()
+            for (epub in allEpubs) {
+                val existingTracker = trackerBooks.firstOrNull { it.title == epub.title }
+                if (existingTracker == null) {
+                    val newTracker = com.example.data.TrackerBook(
+                        title = epub.title,
+                        author = "",
+                        totalChapters = epub.totalChapters,
+                        readChapters = epub.lastReadChapter,
+                        addedTimestamp = epub.addedTimestamp,
+                        lastUpdatedTimestamp = epub.lastOpenedTimestamp
+                    )
+                    db.trackerDao().insertBook(newTracker)
+                } else if (existingTracker.readChapters < epub.lastReadChapter || existingTracker.totalChapters < epub.totalChapters) {
+                    val updatedTracker = existingTracker.copy(
+                        readChapters = Math.max(existingTracker.readChapters, epub.lastReadChapter),
+                        totalChapters = Math.max(existingTracker.totalChapters, epub.totalChapters),
+                        lastUpdatedTimestamp = System.currentTimeMillis()
+                    )
+                    db.trackerDao().updateBook(updatedTracker)
+                }
+            }
+        }
     }
 
     private fun hideOverlays() {
@@ -268,18 +296,24 @@ class FloatingReaderService : Service() {
             btnImported.text = "Imported"
         }
 
+        if (currentLibraryTab == "Recent") {
+            btnRecent.setTextColor(android.graphics.Color.WHITE)
+            btnImported.setTextColor(android.graphics.Color.GRAY)
+        } else {
+            btnRecent.setTextColor(android.graphics.Color.GRAY)
+            btnImported.setTextColor(android.graphics.Color.WHITE)
+        }
+
         if (currentLibraryTab == "Imported" && useScopedDir) {
              val uriStr = prefs.getString("scoped_directory_uri", null)
              if (uriStr != null) {
-                 btnRecent.setTextColor(android.graphics.Color.GRAY)
-                 btnImported.setTextColor(android.graphics.Color.WHITE)
                  serviceScope.launch(Dispatchers.IO) {
                      val uri = Uri.parse(uriStr)
                      val dirFile = DocumentFile.fromTreeUri(this@FloatingReaderService, uri)
                      val files = dirFile?.listFiles()?.filter { it.name?.endsWith(".epub", true) == true || it.name?.endsWith(".txt", true) == true } ?: emptyList()
                      withContext(Dispatchers.Main) {
                          listLibrary.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this@FloatingReaderService)
-                         listLibrary.adapter = FileAdapter(files)
+                         listLibrary.adapter = androidx.recyclerview.widget.ConcatAdapter(FileAdapter(files), FooterAdapter())
                      }
                  }
              } else {
@@ -297,15 +331,7 @@ class FloatingReaderService : Service() {
             }
             withContext(Dispatchers.Main) {
                 listLibrary.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this@FloatingReaderService)
-                listLibrary.adapter = LibraryAdapter(books)
-                
-                if (currentLibraryTab == "Recent") {
-                    btnRecent.setTextColor(android.graphics.Color.WHITE)
-                    btnImported.setTextColor(android.graphics.Color.GRAY)
-                } else {
-                    btnRecent.setTextColor(android.graphics.Color.GRAY)
-                    btnImported.setTextColor(android.graphics.Color.WHITE)
-                }
+                listLibrary.adapter = androidx.recyclerview.widget.ConcatAdapter(LibraryAdapter(books), FooterAdapter())
             }
         }
     }
@@ -327,33 +353,6 @@ class FloatingReaderService : Service() {
         floatingView.findViewById<Button>(R.id.btn_tab_imported)?.setOnClickListener {
             currentLibraryTab = "Imported"
             loadLibraryBooks()
-        }
-
-        floatingView.findViewById<View>(R.id.fab_add_book)?.setOnClickListener {
-            val intent = Intent(this, com.example.MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                putExtra("PICK_EPUB", true)
-            }
-            try { startActivity(intent) } catch (e: Exception) { AppLogger.d("Service", "Failed to start library import: ${e.message}") }
-        }
-        
-        floatingView.findViewById<View>(R.id.fab_tracker)?.setOnClickListener {
-            val intent = Intent(this, com.example.TrackerActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            }
-            try { startActivity(intent) } catch (e: Exception) { AppLogger.d("Service", "Failed to start tracker: ${e.message}") }
-            setFolded(true)
-        }
-        
-        floatingView.findViewById<View>(R.id.fab_continue)?.setOnClickListener {
-            hideOverlays()
-            if (currentBook == null) {
-                // If no book is open, open the last read book
-                val lastBook = prefs.getInt("last_book_id", -1)
-                if (lastBook != -1) {
-                    loadBook(lastBook)
-                }
-            }
         }
     }
 
@@ -425,6 +424,52 @@ class FloatingReaderService : Service() {
                 }
                 else -> false
             }
+        }
+        
+        val gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onFling(e1: MotionEvent?, e2: MotionEvent, velocityX: Float, velocityY: Float): Boolean {
+                if (e1 != null && e2 != null && overlayLibrary.visibility == View.VISIBLE) {
+                    val dx = e2.x - e1.x
+                    val dy = e2.y - e1.y
+                    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 100 && Math.abs(velocityX) > 100) {
+                        if (dx > 0) {
+                            if (currentLibraryTab == "Imported") {
+                                currentLibraryTab = "Recent"
+                                loadLibraryBooks()
+                                return true
+                            }
+                        } else {
+                            if (currentLibraryTab == "Recent") {
+                                currentLibraryTab = "Imported"
+                                loadLibraryBooks()
+                                return true
+                            }
+                        }
+                    }
+                }
+                return false
+            }
+        })
+        
+        listLibrary.setOnTouchListener { _, event ->
+            gestureDetector.onTouchEvent(event)
+            false
+        }
+        
+        floatingView.findViewById<View>(R.id.btn_library_settings)?.setOnClickListener {
+            openSettingsView()
+        }
+        
+        floatingView.findViewById<View>(R.id.btn_library_tracker)?.setOnClickListener {
+            val intent = Intent(this, com.example.TrackerActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+            try { startActivity(intent) } catch (e: Exception) { AppLogger.d("Service", "Failed to start tracker: ${e.message}") }
+            setFolded(true)
+        }
+        
+        floatingView.findViewById<View>(R.id.btn_settings_back)?.setOnClickListener {
+            openLibraryView()
         }
 
         // Toolbar Buttons
@@ -920,6 +965,34 @@ class FloatingReaderService : Service() {
             isSpeaking = true
             btnTts.setImageResource(android.R.drawable.ic_media_pause)
         }
+    }
+
+    private inner class FooterAdapter : androidx.recyclerview.widget.RecyclerView.Adapter<FooterAdapter.FooterViewHolder>() {
+        inner class FooterViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
+            init {
+                view.findViewById<View>(R.id.fab_add_book)?.setOnClickListener {
+                    val intent = Intent(this@FloatingReaderService, com.example.MainActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        putExtra("PICK_EPUB", true)
+                    }
+                    try { startActivity(intent) } catch (e: Exception) { AppLogger.d("Service", "Failed to start library import: ${e.message}") }
+                }
+                
+                view.findViewById<View>(R.id.fab_continue)?.setOnClickListener {
+                    val lastBook = prefs.getInt("last_book_id", -1)
+                    if (lastBook != -1) {
+                        loadBook(lastBook)
+                    }
+                    hideOverlays()
+                }
+            }
+        }
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FooterViewHolder {
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_library_footer, parent, false)
+            return FooterViewHolder(view)
+        }
+        override fun onBindViewHolder(holder: FooterViewHolder, position: Int) {}
+        override fun getItemCount() = 1
     }
 
     private inner class FileAdapter(var files: List<DocumentFile>) : androidx.recyclerview.widget.RecyclerView.Adapter<FileAdapter.FileViewHolder>() {

@@ -46,10 +46,26 @@ System is fully rebuilt from scratch post-workspace wipe. Ready for deployment.
 - [x] Condensed Navigation Toolbar (shrunk sizing and reduced padding gaps).
 - [x] Folded Bubble Icon styled as purple 'v' icon over a grey circle with 70% transparency (`alpha=0.3`) for underlying readability.
 
+### Phase 10: Smooth Scrolling FABs (Library)
+- [x] Extracted Library FABs (Continue, Tracker, Add Book) from the fixed `layout_gravity="bottom|end"` view group overlay.
+- [x] Moved them into a new `item_library_footer.xml` layout and created a `FooterAdapter`.
+- [x] Employed `ConcatAdapter` to concatenate the file lists (`FileAdapter` / `LibraryAdapter`) and the Action Buttons (`FooterAdapter`). This perfectly embeds them at the bottom of the scrollable list without disrupting view recycling, keeping the layout completely smooth and lightweight when the floating window is shrunk.
+
+### Phase 11: Top Bar Triggers & Library Overhaul
+- [x] Moved Settings and Tracker triggers directly into the Library Top Bar.
+- [x] Removed Tracker action from the Library Footer FABs array.
+- [x] Added Back Button navigation logic natively inside the Settings top bar heading.
+- [x] Resolved "Resume loading" lag by aligning `fab_continue` logic structurally matching Recent item opens (explicitly triggering `loadBook` irrespective of overlay nullification).
+- [x] Implemented swipe-to-switch across Library tabs using `GestureDetector` `onFling`.
+- [x] Deployed automated `TrackerDao` mapping, synchronizing every `EpubBook` automatically so any book opened structurally cascades into `TrackerBook` registries. 
+- [x] Stabilized File Explorer tab text-color states enforcing color resolution explicitly before scope checking.
+
 ### Progress Update
-* Blueprint Status: Phase 9
+* Blueprint Status: Phase 11
 * Files Synchronized:
-  - `MainActivity.kt`: Patched `onCreate` intent bypass that was preventing `PICK_DIRECTORY` intents from triggering the directory picker when the app was launched directly from the setting toggle.
-* Next Action: Monitor user feedback.
+  - `layout_floating_reader.xml`: Overhauled Library Top Bar with Action Icons; overhauled Settings Top Bar to incorporate Revert button natively.
+  - `item_library_footer.xml`: Excluded Tracker FAB.
+  - `FloatingReaderService.kt`: Dislodged and reinserted listener arrays, merged global `TrackerDao` iteration syncing, wrapped gesture `onFling` configurations for swipe navigation, and streamlined logic flow scaling.
+* Next Action: Monitor user verification of the new layout flow.
 
 
