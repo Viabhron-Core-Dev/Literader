@@ -38,7 +38,7 @@ System is fully rebuilt from scratch post-workspace wipe. Ready for deployment.
 
 ### Phase 8: File Explorer Tab (Scoped Directory)
 - [x] In the Floating Service's Settings, add an optional Switch for "Scoped Directory (File Explorer)".
-- [x] Enable users to grant `ACTION_OPEN_DOCUMENT_TREE` permissions from `MainActivity` via a "Select Directory" button.
+- [x] Enable users to grant `ACTION_OPEN_DOCUMENT_TREE` permissions from `MainActivity` via a "Select Directory" button. Fix intent routing bypass.
 - [x] When enabled, dynamically change the "Imported" Library tab to "File Explorer" which recursively loads visible EPUB/TXT files right from external shared folders using `DocumentFile`.
 - [x] Hook tap-to-read from File Explorer directly to the `LibraryRepository.importBook()` pathway (populating the DB/Recent cache).
 
@@ -49,7 +49,7 @@ System is fully rebuilt from scratch post-workspace wipe. Ready for deployment.
 ### Progress Update
 * Blueprint Status: Phase 9
 * Files Synchronized:
-  - `layout_floating_reader.xml`: Shrunk toolbar icons to 32dp, condensed padding. Updated `bubble_icon` to use `#9C27B0` text color and `alpha="0.3"`.
-* Next Action: Monitor user feedback on readability and navigation density.
+  - `MainActivity.kt`: Patched `onCreate` intent bypass that was preventing `PICK_DIRECTORY` intents from triggering the directory picker when the app was launched directly from the setting toggle.
+* Next Action: Monitor user feedback.
 
 
