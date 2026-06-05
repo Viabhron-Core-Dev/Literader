@@ -60,12 +60,14 @@ System is fully rebuilt from scratch post-workspace wipe. Ready for deployment.
 - [x] Deployed automated `TrackerDao` mapping, synchronizing every `EpubBook` automatically so any book opened structurally cascades into `TrackerBook` registries. 
 - [x] Stabilized File Explorer tab text-color states enforcing color resolution explicitly before scope checking.
 
+### Phase 12: FAB Positioning (Library)
+- [x] Restored correct vertical stacking constraint and alignment (`gravity="end"`) to the trailing Action FABs within the generic `item_library_footer.xml` adapter layout. 
+- [x] Aligned spacing/margins to mirror the original UI overlay positioning exactly, anchoring them on the bottom right of the scrolling context.
+
 ### Progress Update
-* Blueprint Status: Phase 11
+* Blueprint Status: Phase 12
 * Files Synchronized:
-  - `layout_floating_reader.xml`: Overhauled Library Top Bar with Action Icons; overhauled Settings Top Bar to incorporate Revert button natively.
-  - `item_library_footer.xml`: Excluded Tracker FAB.
-  - `FloatingReaderService.kt`: Dislodged and reinserted listener arrays, merged global `TrackerDao` iteration syncing, wrapped gesture `onFling` configurations for swipe navigation, and streamlined logic flow scaling.
-* Next Action: Monitor user verification of the new layout flow.
+  - `item_library_footer.xml`: Changed orientation to `vertical`, `gravity` to `end` and swapped margin configurations.
+* Next Action: Await additional layout feedback.
 
 
