@@ -61,6 +61,9 @@ class LibraryRepository(private val context: Context) {
     }
 
     private fun getFileName(uri: Uri): String? {
+        if (uri.scheme == "file") {
+            return uri.lastPathSegment
+        }
         var name: String? = null
         val cursor = context.contentResolver.query(uri, null, null, null, null)
         cursor?.use {

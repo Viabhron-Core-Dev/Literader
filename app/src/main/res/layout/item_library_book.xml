@@ -8,8 +8,11 @@
     android:background="?android:attr/selectableItemBackground">
     
     <ImageView
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        android:id="@+id/iv_cover"
+        android:layout_width="48dp"
+        android:layout_height="72dp"
+        android:scaleType="centerCrop"
+        android:background="#333333"
         android:src="@android:drawable/ic_menu_agenda"
         android:tint="#7FE9F9"/>
         

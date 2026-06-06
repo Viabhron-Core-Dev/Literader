@@ -234,14 +234,30 @@ class FloatingReaderService : Service() {
         listLibrary = floatingView.findViewById(R.id.list_library)
         listChapters = floatingView.findViewById(R.id.list_chapters)
         floatingView.findViewById<Button>(R.id.btn_backup_data)?.setOnClickListener {
-            Toast.makeText(this, "Backup (No Books) saved to Downloads.", Toast.LENGTH_SHORT).show()
+            showToast("Backup (No Books) saved to Downloads.")
             // Placeholder for actual zip backup implementation
         }
         floatingView.findViewById<Button>(R.id.btn_backup_data_books)?.setOnClickListener {
-            Toast.makeText(this, "Backup (With Books) saved to Downloads.", Toast.LENGTH_SHORT).show()
+            showToast("Backup (With Books) saved to Downloads.")
         }
         floatingView.findViewById<Button>(R.id.btn_restore_data)?.setOnClickListener {
-            Toast.makeText(this, "Restore features coming soon.", Toast.LENGTH_SHORT).show()
+            showToast("Restore features coming soon.")
+        }
+        
+        floatingView.findViewById<View>(R.id.fab_add_book)?.setOnClickListener {
+            val intent = Intent(this@FloatingReaderService, com.example.MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                putExtra("PICK_EPUB", true)
+            }
+            try { startActivity(intent) } catch (e: Exception) { AppLogger.d("Service", "Failed to start library import: ${e.message}") }
+        }
+        
+        floatingView.findViewById<View>(R.id.fab_continue)?.setOnClickListener {
+            val lastBook = prefs.getInt("last_book_id", -1)
+            if (lastBook != -1) {
+                loadBook(lastBook)
+            }
+            hideOverlays()
         }
 
         startAutoSaveTimer()
@@ -275,6 +291,25 @@ class FloatingReaderService : Service() {
         }
     }
 
+    private var toastJob: kotlinx.coroutines.Job? = null
+
+    private fun showToast(message: String) {
+        serviceScope.launch(Dispatchers.Main) {
+            val tvToast = floatingView.findViewById<TextView>(R.id.tv_custom_toast)
+            if (tvToast != null) {
+                tvToast.text = message
+                tvToast.visibility = View.VISIBLE
+                toastJob?.cancel()
+                toastJob = launch {
+                    kotlinx.coroutines.delay(2500)
+                    tvToast.visibility = View.GONE
+                }
+            } else {
+                Toast.makeText(this@FloatingReaderService, message, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     private fun hideOverlays() {
         overlayLibrary.visibility = View.GONE
         overlayChapters.visibility = View.GONE
@@ -284,11 +319,24 @@ class FloatingReaderService : Service() {
     }
 
     private var currentLibraryTab = "Recent"
+    private var currentExplorerDir: java.io.File? = null
+    private var rootExplorerDir: java.io.File? = null
+    private var explorerSortByName: Boolean = true
+    private var explorerSortAscending: Boolean = true
 
     private fun loadLibraryBooks() {
         val useScopedDir = prefs.getBoolean("use_scoped_dir", false)
         val btnRecent = floatingView.findViewById<Button>(R.id.btn_tab_recent)
         val btnImported = floatingView.findViewById<Button>(R.id.btn_tab_imported)
+        val barExplorerTools = floatingView.findViewById<View>(R.id.bar_explorer_tools)
+        val tvPath = floatingView.findViewById<TextView>(R.id.tv_explorer_path)
+        val btnUp = floatingView.findViewById<View>(R.id.btn_explorer_up)
+        val btnSortType = floatingView.findViewById<Button>(R.id.btn_sort_type)
+        val btnSortField = floatingView.findViewById<ImageView>(R.id.btn_sort_order)
+
+        // Setup sort buttons
+        btnSortType?.text = if (explorerSortByName) "Name" else "Date"
+        btnSortField?.setImageResource(if (explorerSortAscending) android.R.drawable.arrow_up_float else android.R.drawable.arrow_down_float)
 
         if (useScopedDir) {
             btnImported.text = "File Explorer"
@@ -299,25 +347,51 @@ class FloatingReaderService : Service() {
         if (currentLibraryTab == "Recent") {
             btnRecent.setTextColor(android.graphics.Color.WHITE)
             btnImported.setTextColor(android.graphics.Color.GRAY)
+            barExplorerTools?.visibility = View.GONE
         } else {
             btnRecent.setTextColor(android.graphics.Color.GRAY)
             btnImported.setTextColor(android.graphics.Color.WHITE)
+            if (useScopedDir) {
+                barExplorerTools?.visibility = View.VISIBLE
+            } else {
+                barExplorerTools?.visibility = View.GONE
+            }
         }
 
         if (currentLibraryTab == "Imported" && useScopedDir) {
-             val uriStr = prefs.getString("scoped_directory_uri", null)
-             if (uriStr != null) {
-                 serviceScope.launch(Dispatchers.IO) {
-                     val uri = Uri.parse(uriStr)
-                     val dirFile = DocumentFile.fromTreeUri(this@FloatingReaderService, uri)
-                     val files = dirFile?.listFiles()?.filter { it.name?.endsWith(".epub", true) == true || it.name?.endsWith(".txt", true) == true } ?: emptyList()
-                     withContext(Dispatchers.Main) {
-                         listLibrary.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this@FloatingReaderService)
-                         listLibrary.adapter = androidx.recyclerview.widget.ConcatAdapter(FileAdapter(files), FooterAdapter())
-                     }
+             serviceScope.launch(Dispatchers.IO) {
+                 if (rootExplorerDir == null) {
+                     rootExplorerDir = android.os.Environment.getExternalStorageDirectory()
+                     explorerStack.clear()
+                     if (rootExplorerDir != null) explorerStack.add(rootExplorerDir!!)
                  }
-             } else {
-                 Toast.makeText(this, "Please select a directory in Settings first", Toast.LENGTH_SHORT).show()
+                 currentExplorerDir = explorerStack.lastOrNull()
+                 
+                 val files = currentExplorerDir?.listFiles()?.toList() ?: emptyList()
+                 val filteredFiles = files.filter { it.isDirectory || it.name.endsWith(".epub", true) || it.name.endsWith(".txt", true) }
+                 
+                 val sortedFiles = filteredFiles.sortedWith(Comparator { a, b ->
+                     if (a.isDirectory && !b.isDirectory) return@Comparator -1
+                     if (!a.isDirectory && b.isDirectory) return@Comparator 1
+                     
+                     if (explorerSortByName) {
+                         val nameA = a.name ?: ""
+                         val nameB = b.name ?: ""
+                         if (explorerSortAscending) nameA.compareTo(nameB, ignoreCase = true) else nameB.compareTo(nameA, ignoreCase = true)
+                     } else {
+                         val dateA = a.lastModified()
+                         val dateB = b.lastModified()
+                         if (explorerSortAscending) dateA.compareTo(dateB) else dateB.compareTo(dateA)
+                     }
+                 })
+
+                 withContext(Dispatchers.Main) {
+                     tvPath?.text = currentExplorerDir?.name ?: "Explorer"
+                     btnUp?.visibility = if (currentExplorerDir?.absolutePath == rootExplorerDir?.absolutePath) View.GONE else View.VISIBLE
+                     
+                     listLibrary.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this@FloatingReaderService)
+                     listLibrary.adapter = FileAdapter(sortedFiles)
+                 }
              }
              return
         }
@@ -331,10 +405,12 @@ class FloatingReaderService : Service() {
             }
             withContext(Dispatchers.Main) {
                 listLibrary.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this@FloatingReaderService)
-                listLibrary.adapter = androidx.recyclerview.widget.ConcatAdapter(LibraryAdapter(books), FooterAdapter())
+                listLibrary.adapter = LibraryAdapter(books)
             }
         }
     }
+
+    private val explorerStack = mutableListOf<java.io.File>()
 
     private fun openLibraryView() {
         hideOverlays()
@@ -352,6 +428,23 @@ class FloatingReaderService : Service() {
         
         floatingView.findViewById<Button>(R.id.btn_tab_imported)?.setOnClickListener {
             currentLibraryTab = "Imported"
+            loadLibraryBooks()
+        }
+
+        floatingView.findViewById<View>(R.id.btn_explorer_up)?.setOnClickListener {
+            if (explorerStack.size > 1) {
+                explorerStack.removeLast()
+                loadLibraryBooks()
+            }
+        }
+        
+        floatingView.findViewById<View>(R.id.btn_sort_type)?.setOnClickListener {
+            explorerSortByName = !explorerSortByName
+            loadLibraryBooks()
+        }
+        
+        floatingView.findViewById<View>(R.id.btn_sort_order)?.setOnClickListener {
+            explorerSortAscending = !explorerSortAscending
             loadLibraryBooks()
         }
     }
@@ -492,10 +585,10 @@ class FloatingReaderService : Service() {
         floatingView.findViewById<View>(R.id.btn_auto_scroll).setOnClickListener {
             isAutoScrolling = !isAutoScrolling
             if (isAutoScrolling) {
-                Toast.makeText(this, "Auto-scroll ON", Toast.LENGTH_SHORT).show()
+                showToast("Auto-scroll ON")
                 scrollHandler.post(scrollRunnable)
             } else {
-                Toast.makeText(this, "Auto-scroll OFF", Toast.LENGTH_SHORT).show()
+                showToast("Auto-scroll OFF")
                 scrollHandler.removeCallbacks(scrollRunnable)
             }
         }
@@ -521,7 +614,7 @@ class FloatingReaderService : Service() {
                     }
                 }
             } else {
-                Toast.makeText(this, "Not found in chapter", Toast.LENGTH_SHORT).show()
+                showToast("Not found in chapter")
             }
         }
         
@@ -567,7 +660,7 @@ class FloatingReaderService : Service() {
             } catch (e: Exception) {
                 // If FileProvider isn't perfectly set up in AndroidManifest yet, fallback to Toast
                 AppLogger.d("Settings", "Export failed: ${e.message}")
-                Toast.makeText(this, "Logs saved to Downloads folder", Toast.LENGTH_LONG).show()
+                showToast("Logs saved to Downloads folder")
                 AppLogger.export(this)
             }
         }
@@ -577,26 +670,32 @@ class FloatingReaderService : Service() {
         }
         
         val switchScoped = floatingView.findViewById<Switch>(R.id.switch_scoped_dir)
-        val btnPickDir = floatingView.findViewById<Button>(R.id.btn_pick_dir)
+        val btnPickDir = floatingView.findViewById<Button>(R.id.btn_grant_storage)
         switchScoped?.isChecked = prefs.getBoolean("use_scoped_dir", false)
-        btnPickDir?.visibility = if (switchScoped?.isChecked == true) View.VISIBLE else View.GONE
+        btnPickDir?.visibility = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && !android.os.Environment.isExternalStorageManager()) View.VISIBLE else View.GONE
         
         switchScoped?.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && !android.os.Environment.isExternalStorageManager()) {
+                switchScoped.isChecked = false
+                val intent = Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:\$packageName")).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+                startActivity(intent)
+                showToast("Please grant All Files Access")
+                return@setOnCheckedChangeListener
+            }
             prefs.edit().putBoolean("use_scoped_dir", isChecked).apply()
-            btnPickDir?.visibility = if (isChecked) View.VISIBLE else View.GONE
             // reload library text if currently in library
             if (overlayLibrary.visibility == View.VISIBLE) {
                 loadLibraryBooks()
             }
         }
         
-        btnPickDir?.setOnClickListener {
-            // Send intent to MainActivity to pick directory
-            val intent = Intent(this@FloatingReaderService, com.example.MainActivity::class.java).apply {
-                putExtra("PICK_DIRECTORY", true)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        floatingView.findViewById<Button>(R.id.btn_grant_storage)?.setOnClickListener {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && !android.os.Environment.isExternalStorageManager()) {
+                val intent = Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:\$packageName")).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+                startActivity(intent)
+            } else {
+                showToast("Permission already granted")
             }
-            startActivity(intent)
         }
         
         floatingView.findViewById<Switch>(R.id.switch_theme)?.setOnCheckedChangeListener { _, isChecked ->
@@ -950,7 +1049,7 @@ class FloatingReaderService : Service() {
 
     private fun toggleTts() {
         if (!isTtsReady) {
-            Toast.makeText(this, "TTS not ready", Toast.LENGTH_SHORT).show()
+            showToast("TTS not ready")
             return
         }
         if (isSpeaking) {
@@ -967,79 +1066,173 @@ class FloatingReaderService : Service() {
         }
     }
 
-    private inner class FooterAdapter : androidx.recyclerview.widget.RecyclerView.Adapter<FooterAdapter.FooterViewHolder>() {
-        inner class FooterViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
-            init {
-                view.findViewById<View>(R.id.fab_add_book)?.setOnClickListener {
-                    val intent = Intent(this@FloatingReaderService, com.example.MainActivity::class.java).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                        putExtra("PICK_EPUB", true)
-                    }
-                    try { startActivity(intent) } catch (e: Exception) { AppLogger.d("Service", "Failed to start library import: ${e.message}") }
-                }
-                
-                view.findViewById<View>(R.id.fab_continue)?.setOnClickListener {
-                    val lastBook = prefs.getInt("last_book_id", -1)
-                    if (lastBook != -1) {
-                        loadBook(lastBook)
-                    }
-                    hideOverlays()
-                }
-            }
-        }
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FooterViewHolder {
-            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_library_footer, parent, false)
-            return FooterViewHolder(view)
-        }
-        override fun onBindViewHolder(holder: FooterViewHolder, position: Int) {}
-        override fun getItemCount() = 1
-    }
 
-    private inner class FileAdapter(var files: List<DocumentFile>) : androidx.recyclerview.widget.RecyclerView.Adapter<FileAdapter.FileViewHolder>() {
+
+    private inner class FileAdapter(var files: List<java.io.File>) : androidx.recyclerview.widget.RecyclerView.Adapter<FileAdapter.FileViewHolder>() {
         
         inner class FileViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
-            val tvTitle: TextView = view.findViewById(R.id.tv_title)
-            val tvSub: TextView = view.findViewById(R.id.tv_subtitle)
-            val btnMore: ImageView = view.findViewById(R.id.btn_more)
+            val ivIcon: ImageView = view.findViewById(R.id.iv_file_icon)
+            val tvName: TextView = view.findViewById(R.id.tv_file_name)
+            val tvSize: TextView = view.findViewById(R.id.tv_file_size)
+
             init {
                 view.setOnClickListener {
                     val pos = adapterPosition
                     if (pos != androidx.recyclerview.widget.RecyclerView.NO_POSITION) {
                         val file = files[pos]
-                        // Try importing it if not already in db, then open
-                        Toast.makeText(this@FloatingReaderService, "Importing ${file.name}...", Toast.LENGTH_SHORT).show()
-                        serviceScope.launch(Dispatchers.IO) {
-                            val repo = com.example.data.LibraryRepository(this@FloatingReaderService)
-                            val book = repo.importBook(file.uri)
-                            withContext(Dispatchers.Main) {
-                                if (book != null) {
-                                    loadBook(book.id)
-                                    hideOverlays()
-                                } else {
-                                    Toast.makeText(this@FloatingReaderService, "Failed to import", Toast.LENGTH_SHORT).show()
+                        if (file.isDirectory) {
+                            explorerStack.add(file)
+                            loadLibraryBooks()
+                        } else {
+                            // Try importing it if not already in db, then open
+                            showToast("Importing ${file.name}...")
+                            serviceScope.launch(Dispatchers.IO) {
+                                val repo = com.example.data.LibraryRepository(this@FloatingReaderService)
+                                val book = repo.importBook(Uri.fromFile(file))
+                                withContext(Dispatchers.Main) {
+                                    if (book != null) {
+                                        loadBook(book.id)
+                                        hideOverlays()
+                                    } else {
+                                        showToast("Failed to import")
+                                    }
                                 }
                             }
                         }
                     }
                 }
-                btnMore.setOnClickListener {
-                    // Action for more on file? Maybe delete physically? 
+                
+                view.setOnLongClickListener {
+                    val pos = adapterPosition
+                    if (pos != androidx.recyclerview.widget.RecyclerView.NO_POSITION) {
+                        val file = files[pos]
+                        showExplorerContextMenu(file)
+                    }
+                    true
                 }
             }
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FileViewHolder {
-            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_library_book, parent, false)
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_file_explorer, parent, false)
             return FileViewHolder(view)
         }
 
         override fun onBindViewHolder(holder: FileViewHolder, position: Int) {
             val file = files[position]
-            holder.tvTitle.text = file.name ?: "Unknown"
-            holder.tvSub.text = "File Explorer"
+            holder.tvName.text = file.name ?: "Unknown"
+            
+            if (file.isDirectory) {
+                holder.ivIcon.setImageResource(android.R.drawable.ic_menu_agenda)
+                holder.ivIcon.setColorFilter(android.graphics.Color.parseColor("#FFD54F")) // Folder color
+                holder.tvSize.visibility = View.GONE
+            } else {
+                holder.ivIcon.setImageResource(android.R.drawable.ic_menu_sort_by_size)
+                holder.ivIcon.setColorFilter(android.graphics.Color.parseColor("#7FE9F9")) // File color
+                holder.tvSize.visibility = View.VISIBLE
+                
+                val sizeBytes = file.length()
+                val sizeText = when {
+                    sizeBytes > 1024 * 1024 -> String.format("%.2f MB", sizeBytes / (1024f * 1024f))
+                    sizeBytes > 1024 -> String.format("%.1f KB", sizeBytes / 1024f)
+                    else -> "$sizeBytes B"
+                }
+                holder.tvSize.text = sizeText
+            }
         }
 
         override fun getItemCount() = files.size
+    }
+
+    private fun showExplorerContextMenu(file: java.io.File) {
+        val options = arrayOf("Properties", "Rename", "Delete")
+        val builder = android.app.AlertDialog.Builder(android.view.ContextThemeWrapper(this, android.R.style.Theme_DeviceDefault_Dialog_Alert))
+        builder.setTitle(file.name)
+        builder.setItems(options) { dialog, which ->
+            when (which) {
+                0 -> {
+                    // Properties
+                    val sizeBytes = file.length()
+                    val sizeMB = sizeBytes / (1024f * 1024f)
+                    val date = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(file.lastModified()))
+                    val props = "Name: ${file.name}\nSize: ${String.format("%.2f MB", sizeMB)}\nModified: $date\nType: ${if(file.isDirectory) "Folder" else "File"}"
+                    android.app.AlertDialog.Builder(android.view.ContextThemeWrapper(this, android.R.style.Theme_DeviceDefault_Dialog_Alert))
+                        .setTitle("Properties")
+                        .setMessage(props)
+                        .setPositiveButton("OK", null)
+                        .run {
+                            val d = create()
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                d.window?.setType(android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
+                            } else {
+                                d.window?.setType(android.view.WindowManager.LayoutParams.TYPE_PHONE)
+                            }
+                            d.show()
+                        }
+                }
+                1 -> {
+                    // Rename
+                    val input = android.widget.EditText(this)
+                    input.setText(file.name)
+                    android.app.AlertDialog.Builder(android.view.ContextThemeWrapper(this, android.R.style.Theme_DeviceDefault_Dialog_Alert))
+                        .setTitle("Rename")
+                        .setView(input)
+                        .setPositiveButton("Rename") { _, _ ->
+                            val newName = input.text.toString()
+                            if (newName.isNotBlank()) {
+                                val newFile = java.io.File(file.parent, newName)
+                                if (file.renameTo(newFile)) {
+                                    showToast("Renamed successful")
+                                    loadLibraryBooks()
+                                } else {
+                                    showToast("Rename failed")
+                                }
+                            }
+                        }
+                        .setNegativeButton("Cancel", null)
+                        .run {
+                            val d = create()
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                d.window?.setType(android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
+                            } else {
+                                d.window?.setType(android.view.WindowManager.LayoutParams.TYPE_PHONE)
+                            }
+                            d.show()
+                        }
+                }
+                2 -> {
+                    // Delete
+                    android.app.AlertDialog.Builder(android.view.ContextThemeWrapper(this, android.R.style.Theme_DeviceDefault_Dialog_Alert))
+                        .setTitle("Delete")
+                        .setMessage("Are you sure you want to delete ${file.name}?")
+                        .setPositiveButton("Delete") { _, _ ->
+                            if (file.delete()) {
+                                showToast("Deleted")
+                                loadLibraryBooks()
+                            } else {
+                                showToast("Delete failed")
+                            }
+                        }
+                        .setNegativeButton("Cancel", null)
+                        .run {
+                            val d = create()
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                d.window?.setType(android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
+                            } else {
+                                d.window?.setType(android.view.WindowManager.LayoutParams.TYPE_PHONE)
+                            }
+                            d.show()
+                        }
+                }
+            }
+        }
+        val dialog = builder.create()
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            dialog.window?.setType(android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
+        } else {
+            dialog.window?.setType(android.view.WindowManager.LayoutParams.TYPE_PHONE)
+        }
+        dialog.show()
     }
 
     private inner class LibraryAdapter(var books: List<com.example.data.EpubBook>) : androidx.recyclerview.widget.RecyclerView.Adapter<LibraryAdapter.LibraryViewHolder>() {
@@ -1057,7 +1250,7 @@ class FloatingReaderService : Service() {
                             loadBook(book.id)
                             hideOverlays()
                         } else {
-                            Toast.makeText(this@FloatingReaderService, "Book is still parsing...", Toast.LENGTH_SHORT).show()
+                            showToast("Book is still parsing...")
                         }
                     }
                 }
@@ -1074,7 +1267,7 @@ class FloatingReaderService : Service() {
                                 notifyDataSetChanged()
                             }
                         }
-                        Toast.makeText(this@FloatingReaderService, "Deleted ${book.title}", Toast.LENGTH_SHORT).show()
+                        showToast("Deleted ${book.title}")
                     }
                 }
             }

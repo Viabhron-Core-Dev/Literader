@@ -64,10 +64,35 @@ System is fully rebuilt from scratch post-workspace wipe. Ready for deployment.
 - [x] Restored correct vertical stacking constraint and alignment (`gravity="end"`) to the trailing Action FABs within the generic `item_library_footer.xml` adapter layout. 
 - [x] Aligned spacing/margins to mirror the original UI overlay positioning exactly, anchoring them on the bottom right of the scrolling context.
 
+### Phase 13: Floating Action Buttons Revert & Robust Storage
+- [x] Restored the Action FABs (`fab_continue` and `fab_add_book`) exactly to the main `layout_floating_reader.xml` overlay layout, bound to a bottom right floating position so they remain fixed regardless of scroll or empty lists.
+- [x] Eliminated the `ConcatAdapter` and `FooterAdapter` list dependencies.
+- [x] Rebuilt File Explorer list synchronization to execute asynchronously and traverse directories robustly allowing nested EPUB files exploration under heavily nested directories like `Books/Author`.
+
+### Phase 14: Lightweight File Explorer & Cover Layouts
+- [x] Converted the recursive file explorer into a localized, lightweight directory traversal system using `explorerStack`, adhering to non-recursive constraints.
+- [x] Designed `item_file_explorer.xml` specifically for parsing non-metadata directory states (Name, precise File Size formatting, native Folder/File icons).
+- [x] Restructured `item_library_book.xml` assigning a native 2:3 vertical Cover aspect ratio for the Recent tab to prepare metadata layouts.
+- [x] Integrated sorting interfaces (Name/Date, Ascending/Descending) into a native `bar_explorer_tools` top bar visible only in the File Explorer tab.
+- [x] Wired a long-press Context Menu (`showExplorerContextMenu`) for Properties, Rename, and Delete file-level operations.
+
+### Phase 15: Application Logging & Notifications Resiliency
+- [x] Fixed "Suppressing toast by user request" OS-level warnings occurring when background apps lack active Foreground notification permissions on Android 13+.
+- [x] Replaced system `Toast` dependencies entirely with a custom floating overlay `tv_custom_toast` view directly anchored into the `layout_floating_reader.xml` interface.
+- [x] Programmed Coroutine `toastJob` delays (`showToast`) to natively replicate SnackBar appearance and duration directly inside the overlay engine.
+
+### Phase 16: Deep Hierarchy Full File Permissions
+- [x] Ripped out restrictive Storage Access Framework (SAF) `DocumentFile` limitations blocking recursive subdirectory traversal.
+- [x] Injected native Android 13+ `MANAGE_EXTERNAL_STORAGE` permission requirements allowing pure `java.io.File` absolute path hierarchy scans natively avoiding memory leaks from large cursors.
+- [x] Connected File Explorer direct iteration logic (`android.os.Environment.getExternalStorageDirectory`) utilizing OS native iterators without needing arbitrary permission tree picks.
+
 ### Progress Update
-* Blueprint Status: Phase 12
+* Blueprint Status: Phase 16
 * Files Synchronized:
-  - `item_library_footer.xml`: Changed orientation to `vertical`, `gravity` to `end` and swapped margin configurations.
-* Next Action: Await additional layout feedback.
+  - `AndroidManifest.xml`: Wired `MANAGE_EXTERNAL_STORAGE` logic deeply.
+  - `layout_floating_reader.xml`: Refactored naming to handle OS-level Storage Permission flows naturally.
+  - `FloatingReaderService.kt`: Interfaced direct `java.io.File` arrays for directory tracking stripping bulky `DocumentFile` overhead. Restructured Action settings mapping to navigate users to `ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION`.
+  - `LibraryRepository.kt`: Forced raw `file://` scheme ingestion for URIs replacing contentResolver lookups when bypassing SAF limits.
+* Next Action: Fully ready for user validation.
 
 
