@@ -90,10 +90,14 @@ System is fully rebuilt from scratch post-workspace wipe. Ready for deployment.
 - [x] Rerouted permission intent from explicit `ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION` directly to `ACTION_APPLICATION_DETAILS_SETTINGS` avoiding system settings page crashes on custom restricted vendor firmware versions.
 - [x] Fixed string literal escaping typo (`\$packageName`).
 
+### Phase 18: Librera Reader Permission Parity
+- [x] Restored `ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION` for Android 11+ as the primary explicit trigger for full structure directory access.
+- [x] Implemented standard Android `try/catch` fallbacks to `ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION` list pickers if the direct App Details path throws `ActivityNotFoundException` (common in restricted Vendor UI layers), matching Librera's permission matrix.
+
 ### Progress Update
-* Blueprint Status: Phase 17
+* Blueprint Status: Phase 18
 * Files Synchronized:
-  - `FloatingReaderService.kt`: Replaced intent routing forcing the user to standard App Info page for manual permission granting.
-* Next Action: Await robust execution validations of the File Explorer layout.
+  - `FloatingReaderService.kt`: Replaced intent routing enforcing standard `ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION` and error catch triggers to prevent setting panel forces closes.
+* Next Action: Await File explorer validations.
 
 
