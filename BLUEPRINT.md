@@ -86,13 +86,14 @@ System is fully rebuilt from scratch post-workspace wipe. Ready for deployment.
 - [x] Injected native Android 13+ `MANAGE_EXTERNAL_STORAGE` permission requirements allowing pure `java.io.File` absolute path hierarchy scans natively avoiding memory leaks from large cursors.
 - [x] Connected File Explorer direct iteration logic (`android.os.Environment.getExternalStorageDirectory`) utilizing OS native iterators without needing arbitrary permission tree picks.
 
+### Phase 17: Fallback App Settings Direction
+- [x] Rerouted permission intent from explicit `ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION` directly to `ACTION_APPLICATION_DETAILS_SETTINGS` avoiding system settings page crashes on custom restricted vendor firmware versions.
+- [x] Fixed string literal escaping typo (`\$packageName`).
+
 ### Progress Update
-* Blueprint Status: Phase 16
+* Blueprint Status: Phase 17
 * Files Synchronized:
-  - `AndroidManifest.xml`: Wired `MANAGE_EXTERNAL_STORAGE` logic deeply.
-  - `layout_floating_reader.xml`: Refactored naming to handle OS-level Storage Permission flows naturally.
-  - `FloatingReaderService.kt`: Interfaced direct `java.io.File` arrays for directory tracking stripping bulky `DocumentFile` overhead. Restructured Action settings mapping to navigate users to `ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION`.
-  - `LibraryRepository.kt`: Forced raw `file://` scheme ingestion for URIs replacing contentResolver lookups when bypassing SAF limits.
-* Next Action: Fully ready for user validation.
+  - `FloatingReaderService.kt`: Replaced intent routing forcing the user to standard App Info page for manual permission granting.
+* Next Action: Await robust execution validations of the File Explorer layout.
 
 

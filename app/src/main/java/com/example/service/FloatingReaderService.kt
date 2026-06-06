@@ -677,9 +677,9 @@ class FloatingReaderService : Service() {
         switchScoped?.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && !android.os.Environment.isExternalStorageManager()) {
                 switchScoped.isChecked = false
-                val intent = Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:\$packageName")).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+                val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
                 startActivity(intent)
-                showToast("Please grant All Files Access")
+                showToast("Please grant All Files / Storage Access")
                 return@setOnCheckedChangeListener
             }
             prefs.edit().putBoolean("use_scoped_dir", isChecked).apply()
@@ -691,7 +691,7 @@ class FloatingReaderService : Service() {
         
         floatingView.findViewById<Button>(R.id.btn_grant_storage)?.setOnClickListener {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && !android.os.Environment.isExternalStorageManager()) {
-                val intent = Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:\$packageName")).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+                val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
                 startActivity(intent)
             } else {
                 showToast("Permission already granted")
