@@ -187,7 +187,7 @@ class FloatingReaderService : Service() {
         var startY = 0f
         var startTime = 0L
 
-        scrollView.setOnTouchListener { v, event ->
+        val touchListener = View.OnTouchListener { v, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     startX = event.x
@@ -201,32 +201,60 @@ class FloatingReaderService : Service() {
                     val dx = startX - endX
                     val dt = System.currentTimeMillis() - startTime
                     
-                    if (Math.abs(dy) > 150) {
-                        if (dy > 150 && !scrollView.canScrollVertically(1)) {
-                            navigateChapter(1)
-                        } else if (dy < -150 && !scrollView.canScrollVertically(-1)) {
-                            navigateChapter(-1, scrollToBottom = true)
-                        }
-                    } else if (dt < 200 && Math.abs(dy) < 30 && Math.abs(dx) < 30) {
-                        // Tap
-                        if (overlayChapters.visibility == View.VISIBLE) {
-                            hideOverlays()
-                            return@setOnTouchListener true
-                        }
-                        
-                        val width = v.width
-                        if (endX < width * 0.3f) {
-                            scrollView.smoothScrollBy(0, -(v.height - 100))
-                        } else if (endX > width * 0.7f) {
-                            scrollView.smoothScrollBy(0, v.height - 100)
+                    // Delay slightly to let TextView process its own selection
+                    v.postDelayed({
+                        val hasSelection = tvContent.selectionStart != tvContent.selectionEnd
+                        val customMenu = floatingView.findViewById<View>(R.id.custom_selection_menu)
+                        if (hasSelection) {
+                            customMenu?.visibility = View.VISIBLE
                         } else {
-                            val isVisible = toolbarContainer.visibility == View.VISIBLE
-                            toolbarContainer.visibility = if (isVisible) View.GONE else View.VISIBLE
+                            customMenu?.visibility = View.GONE
                         }
-                    }
+
+                        if (Math.abs(dy) > 150) {
+                            if (dy > 150 && !scrollView.canScrollVertically(1)) {
+                                navigateChapter(1)
+                            } else if (dy < -150 && !scrollView.canScrollVertically(-1)) {
+                                navigateChapter(-1, scrollToBottom = true)
+                            }
+                        } else if (dt < 200 && Math.abs(dy) < 30 && Math.abs(dx) < 30 && !hasSelection) {
+                            // Tap
+                            if (overlayChapters.visibility == View.VISIBLE) {
+                                hideOverlays()
+                            } else {
+                                val width = v.width
+                                if (endX < width * 0.3f) {
+                                    scrollView.smoothScrollBy(0, -(v.height - 100))
+                                } else if (endX > width * 0.7f) {
+                                    scrollView.smoothScrollBy(0, v.height - 100)
+                                } else {
+                                    val isVisible = toolbarContainer.visibility == View.VISIBLE
+                                    toolbarContainer.visibility = if (isVisible) View.GONE else View.VISIBLE
+                                }
+                            }
+                        }
+                    }, 50)
                 }
             }
             false
+        }
+
+        scrollView.setOnTouchListener(touchListener)
+        tvContent.setOnTouchListener(touchListener)
+        
+        // Prevent default action mode from crashing in overlay
+        tvContent.customSelectionActionModeCallback = object : android.view.ActionMode.Callback {
+            override fun onCreateActionMode(mode: android.view.ActionMode?, menu: android.view.Menu?): Boolean {
+                return true // Return true so selection remains, we just don't handle its menu
+            }
+            override fun onPrepareActionMode(mode: android.view.ActionMode?, menu: android.view.Menu?): Boolean {
+                menu?.clear() // Clear default items
+                return false
+            }
+            override fun onActionItemClicked(mode: android.view.ActionMode?, item: android.view.MenuItem?): Boolean = false
+            override fun onDestroyActionMode(mode: android.view.ActionMode?) {
+                 floatingView.findViewById<View>(R.id.custom_selection_menu)?.visibility = View.GONE
+            }
         }
         windowContainer = floatingView.findViewById(R.id.window_container)
         btnTts = floatingView.findViewById(R.id.btn_tts)
@@ -504,22 +532,14 @@ class FloatingReaderService : Service() {
     }
 
     private fun openSettingsView() {
-        hideOverlays()
         overlaySettings.visibility = View.VISIBLE
-        scrollView.visibility = View.GONE
         toolbarContainer.visibility = View.GONE
-        tvWindowTitle.text = "Settings"
     }
 
     private fun openBookmarksView() {
-        hideOverlays()
         overlayBookmarks.visibility = View.VISIBLE
-        scrollView.visibility = View.GONE
         toolbarContainer.visibility = View.GONE
-        tvWindowTitle.text = "Bookmarks"
-        // Setup bookmarks list dummy or just leave it blank for now
         listBookmarks.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
-        // You could add an adapter here if bookmarks data exists
     }
 
     private fun setupListeners() {
@@ -613,18 +633,10 @@ class FloatingReaderService : Service() {
         }
         
         floatingView.findViewById<View>(R.id.btn_settings_back)?.setOnClickListener {
-            hideOverlays()
-            currentBook?.let { 
-                val displayTitle = it.title.replace(Regex("(?i)\\.epub$"), "")
-                tvWindowTitle.text = "$displayTitle (Ch ${currentChapterIndex + 1}/${it.totalChapters})"
-            }
+            overlaySettings.visibility = View.GONE
         }
         floatingView.findViewById<View>(R.id.btn_bookmarks_back)?.setOnClickListener {
-            hideOverlays()
-            currentBook?.let { 
-                val displayTitle = it.title.replace(Regex("(?i)\\.epub$"), "")
-                tvWindowTitle.text = "$displayTitle (Ch ${currentChapterIndex + 1}/${it.totalChapters})"
-            }
+            overlayBookmarks.visibility = View.GONE
         }
         
         floatingView.findViewById<View>(R.id.btn_add_bookmark)?.setOnClickListener {
@@ -639,6 +651,55 @@ class FloatingReaderService : Service() {
         }
         floatingView.findViewById<View>(R.id.btn_minimize_bottom)?.setOnClickListener {
             setFolded(true)
+        }
+        floatingView.findViewById<View>(R.id.btn_exit_bottom)?.setOnClickListener {
+            saveCurrentPosition()
+            stopSelf()
+        }
+
+        floatingView.findViewById<View>(R.id.btn_copy_text)?.setOnClickListener {
+            if (tvContent.hasSelection()) {
+                val start = tvContent.selectionStart
+                val end = tvContent.selectionEnd
+                if (start != -1 && end != -1) {
+                    val selectedText = tvContent.text.substring(Math.min(start, end), Math.max(start, end))
+                    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    val clip = android.content.ClipData.newPlainText("Copied Text", selectedText)
+                    clipboard.setPrimaryClip(clip)
+                    showToast("Text Copied")
+                }
+            }
+            floatingView.findViewById<View>(R.id.custom_selection_menu)?.visibility = View.GONE
+            // Clear selection
+            tvContent.text = tvContent.text 
+        }
+
+        floatingView.findViewById<View>(R.id.btn_share_text)?.setOnClickListener {
+            if (tvContent.hasSelection()) {
+                val start = tvContent.selectionStart
+                val end = tvContent.selectionEnd
+                if (start != -1 && end != -1) {
+                    val selectedText = tvContent.text.substring(Math.min(start, end), Math.max(start, end))
+                    val shareIntent = Intent().apply {
+                        action = Intent.ACTION_SEND
+                        putExtra(Intent.EXTRA_TEXT, selectedText)
+                        type = "text/plain"
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    val chooser = Intent.createChooser(shareIntent, "Share Text")
+                    chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    startActivity(chooser)
+                }
+            }
+            floatingView.findViewById<View>(R.id.custom_selection_menu)?.visibility = View.GONE
+            // Clear selection
+            tvContent.text = tvContent.text 
+        }
+
+        floatingView.findViewById<View>(R.id.btn_close_selection)?.setOnClickListener {
+            floatingView.findViewById<View>(R.id.custom_selection_menu)?.visibility = View.GONE
+            // Clear selection
+            tvContent.text = tvContent.text 
         }
         
         floatingView.findViewById<View>(R.id.btn_bookmarks)?.setOnClickListener {

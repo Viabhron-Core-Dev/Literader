@@ -133,14 +133,20 @@ System is fully rebuilt from scratch post-workspace wipe. Ready for deployment.
 - [x] Corrected back-button behavior globally across Settings and the new Bookmarks view natively hiding the view instead of artificially navigating backward.
 - [x] Overhauled UI saving using robust `SharedPreferences` interceptors storing `currentLibraryTab`, `explorerSortAscending`, and Explorer nested directory navigation `File` instances locally across boot.
 - [x] Bound a mocked 'Save Bookmark' system toast to intercept Bookmarks array inserts.
+- [x] Polished Back Navigation in Settings and Bookmarks: Removed hard-clearing of underlying views, allowing seamless return to exact previous state (Library or Book).
+
+### Phase 27: Text Selection Fixes & Floating Controls
+- [x] Converted the rigid bottom layout into a semi-transparent floating control cluster (Close, Minimize, Resize) situated at the bottom-right corner.
+- [x] Stretched the main `ScrollView` completely to the bottom edge, providing an unobstructed reading view.
+- [x] Restored `ScrollView` + `TextView` combined tap listeners. A short tap now correctly toggles the toolbar visibility even with Android's selection handler enabled.
+- [x] Integrated a native custom floating Context Menu containing [Copy], [Share], and [Clear]. This appears specifically when `tvContent.hasSelection()` is true, bypassing the Android Overlay restriction that prevents `ActionMode` toolbars from spawning.
 
 ### Progress Update
-* Blueprint Status: Phase 26
+* Blueprint Status: Phase 27
 * Files Synchronized:
-  - `ic_*.xml`: Custom vector creations across native tools.
-  - `layout_floating_reader.xml`: Thin progress bar and custom bookmarks layout overlay.
-  - `FloatingReaderService.kt`: Persisted directory states, removed dead reference IDs, allowed TextView selectability.
-* Next Action: Await next task.
+  - `layout_floating_reader.xml`: Re-parented bottom handles to float within the core frame, adding custom context options.
+  - `FloatingReaderService.kt`: Rewrote touch-listener dispatch pipeline to accommodate nested TextView interceptors, wired explicit custom menu visibility hooks over Android's `ActionMode.Callback`.
+* Next Action: Await direction or app export.
 
 
 
