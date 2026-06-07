@@ -1,53 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    
-    <!-- Outer Black Border (Pixel Art Style) -->
-    <path
-        android:fillColor="#000000"
-        android:pathData="M22,24 h64 v68 h-64 z" />
-        
-    <!-- Book Dark Spine -->
-    <path
-        android:fillColor="#3A3A3A"
-        android:pathData="M24,26 h8 v60 h-8 z" />
-        
-    <!-- Book Front Cover -->
-    <path
-        android:fillColor="#6B6B6B"
-        android:pathData="M32,26 h52 v60 h-52 z" />
-
-    <!-- Spine highlight / crease -->
-    <path
-        android:fillColor="#555555"
-        android:pathData="M31,26 h1 v60 h-1 z" />
-
-    <!-- Book Pages Bottom Area (Outer black for pages) -->
-    <path
-        android:fillColor="#000000"
-        android:pathData="M24,86 h60 v6 h-60 z" />
-
-    <!-- Book Pages Fill -->
-    <path
-        android:fillColor="#E0DCD3"
-        android:pathData="M26,86 h56 v4 h-56 z" />
-
-    <!-- Book Bottom Cover Edge -->
-    <path
-        android:fillColor="#000000"
-        android:pathData="M22,90 h64 v4 h-64 z" />
-        
-    <!-- Page lines details -->
-    <path
-        android:fillColor="#A9A59E"
-        android:pathData="M32,87 h14 v1 h-14 z M52,87 h24 v1 h-24 z M40,88 h20 v1 h-20 z" />
-
-    <!-- Purple V -->
-    <path
-        android:fillColor="#521C5F"
-        android:pathData="M 40,42 h 8 l 6,18 l 6,-18 h 8 l -10,28 h -8 z" />
-        
-</vector>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:width="108dp"
+        android:height="108dp"
+        android:drawable="@drawable/ic_custom_book_icon"
+        android:gravity="center" />
+</layer-list>

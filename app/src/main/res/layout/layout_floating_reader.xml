@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -25,7 +26,8 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:background="#222222"
+        android:background="@drawable/bg_floating_window"
+        android:clipToOutline="true"
         android:visibility="gone">
 
         <!-- Permanent Top Bar -->
@@ -51,17 +53,19 @@
                 android:id="@+id/btn_minimize"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
-                android:padding="10dp"
+                android:padding="12dp"
+                android:background="#4CAF50"
                 android:src="@android:drawable/ic_menu_revert"
-                android:tint="#888888" />
+                android:tint="#FFFFFF" />
 
             <ImageView
                 android:id="@+id/btn_exit"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
-                android:padding="10dp"
+                android:padding="12dp"
+                android:background="#F44336"
                 android:src="@android:drawable/ic_menu_close_clear_cancel"
-                android:tint="#888888" />
+                android:tint="#FFFFFF" />
         </LinearLayout>
 
         <FrameLayout
@@ -186,7 +190,7 @@
                         android:layout_width="32dp"
                         android:layout_height="32dp"
                         android:background="?android:attr/selectableItemBackground"
-                        android:src="@android:drawable/ic_menu_revert"
+                        android:src="@drawable/ic_arrow_back"
                         android:tint="#FFFFFF"
                         android:visibility="gone" />
                     <TextView
@@ -284,7 +288,8 @@
                                 android:layout_width="32dp"
                                 android:layout_height="32dp"
                                 android:background="@android:color/transparent"
-                                android:src="@android:drawable/ic_menu_revert"
+                                android:src="@drawable/ic_arrow_back"
+                                android:tint="#FFFFFF"
                                 android:scaleType="fitCenter" />
                             <TextView 
                                 android:layout_width="wrap_content" 
@@ -499,19 +504,29 @@
             </LinearLayout>
         </FrameLayout>
 
-        <!-- Bottom right resize handle -->
+        <!-- Bottom resize handle & alternate fold -->
         <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="24dp"
+            android:layout_height="16dp"
             android:background="#151515" >
+            <ImageView
+                android:id="@+id/btn_minimize_bottom"
+                android:layout_width="24dp"
+                android:layout_height="16dp"
+                android:layout_gravity="start"
+                android:padding="2dp"
+                android:background="#4CAF50"
+                android:src="@android:drawable/ic_menu_revert"
+                android:tint="#FFFFFF" />
             <ImageView
                 android:id="@+id/resize_handle"
                 android:layout_width="24dp"
-                android:layout_height="24dp"
+                android:layout_height="16dp"
                 android:layout_gravity="end"
-                android:padding="4dp"
+                android:padding="2dp"
+                android:background="#9E9E9E"
                 android:src="@android:drawable/ic_menu_crop"
-                android:tint="#555555" />
+                android:tint="#FFFFFF" />
         </FrameLayout>
     </LinearLayout>
 

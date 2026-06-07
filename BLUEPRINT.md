@@ -99,11 +99,27 @@ System is fully rebuilt from scratch post-workspace wipe. Ready for deployment.
 - [x] Injected rich sub-text metadata into File Explorer adapters pairing file extensions and precise file sizes side-by-side (`EPUB • 2.50 MB`).
 - [x] Integrated lightweight IO off-thread ZIP extraction within the `FileAdapter` capturing localized `cover.jpg` from within the EPUB structure and painting bitmaps direct into the explorer list.
 
+### Phase 20: App Icon Update
+- [x] Processed user-provided custom book icon for the application.
+- [x] Scaled and structured the icon into adaptive layouts by dropping it as the primary `ic_launcher_foreground` drawing and matching bounding colors in `ic_launcher_background` (`#1A2045`).
+- [x] **Hotfix**: Updated `MainActivity.kt` Jetpack Compose `painterResource` to reference `ic_custom_book_icon` directly, since Compose cannot load `<layer-list>` structured XMLs natively on some platforms causing `IllegalArgumentException`.
+
+### Phase 21: UI Icon Refinement
+- [x] Swapped `ic_menu_revert` with standard Android styled `ic_arrow_back` vector geometry for library overlay navigation back paths.
+
+### Phase 22: Window Layout Refinements
+- [x] Transformed `btn_minimize`, `btn_exit`, and `resize_handle` into explicit interaction blocks with solid semantic colors (green, red, grey) mimicking classic window title controls.
+- [x] Skinned the bottom resize strip thinner (16dp heights instead of 24dp).
+- [x] Duplicated layout folding action to the bottom strip opposite the resize handle, granting dual-edge minimizing mirroring resizing patterns without needing to crawl back up.
+
+### Phase 23: Icon Reload
+- [x] Processed new imported user icon replacement and populated directly over `ic_custom_book_icon.png` in resources for app launcher and splash views.
+
 ### Progress Update
-* Blueprint Status: Phase 19
+* Blueprint Status: Phase 23
 * Files Synchronized:
-  - `item_file_explorer.xml`: Upgraded ImageView dimensions handling varied ratio book thumbnails.
-  - `FloatingReaderService.kt`: Built `loadEpubCover` asynchronous extraction methods scanning ZIP directory arrays to serve responsive UI image caching via `setImageBitmap`.
-* Next Action: Await File explorer validations.
+  - `ic_custom_book_icon.png`: Replaced with new uploaded asset.
+* Next Action: Await approvals or test flights.
+
 
 

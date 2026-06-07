@@ -574,6 +574,9 @@ class FloatingReaderService : Service() {
         floatingView.findViewById<View>(R.id.btn_minimize).setOnClickListener {
             setFolded(true)
         }
+        floatingView.findViewById<View>(R.id.btn_minimize_bottom)?.setOnClickListener {
+            setFolded(true)
+        }
         floatingView.findViewById<View>(R.id.btn_exit_toolbar).setOnClickListener {
             saveCurrentPosition()
             stopSelf()
