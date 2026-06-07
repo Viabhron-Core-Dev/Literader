@@ -94,10 +94,16 @@ System is fully rebuilt from scratch post-workspace wipe. Ready for deployment.
 - [x] Restored `ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION` for Android 11+ as the primary explicit trigger for full structure directory access.
 - [x] Implemented standard Android `try/catch` fallbacks to `ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION` list pickers if the direct App Details path throws `ActivityNotFoundException` (common in restricted Vendor UI layers), matching Librera's permission matrix.
 
+### Phase 19: EPUB Thumbnails & Rich File Formatting
+- [x] Reworked File Explorer `item_file_explorer.xml` resolving text layout clamping — migrating to `maxLines=2` with end ellipsizing to cleanly display longer eBook names.
+- [x] Injected rich sub-text metadata into File Explorer adapters pairing file extensions and precise file sizes side-by-side (`EPUB • 2.50 MB`).
+- [x] Integrated lightweight IO off-thread ZIP extraction within the `FileAdapter` capturing localized `cover.jpg` from within the EPUB structure and painting bitmaps direct into the explorer list.
+
 ### Progress Update
-* Blueprint Status: Phase 18
+* Blueprint Status: Phase 19
 * Files Synchronized:
-  - `FloatingReaderService.kt`: Replaced intent routing enforcing standard `ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION` and error catch triggers to prevent setting panel forces closes.
+  - `item_file_explorer.xml`: Upgraded ImageView dimensions handling varied ratio book thumbnails.
+  - `FloatingReaderService.kt`: Built `loadEpubCover` asynchronous extraction methods scanning ZIP directory arrays to serve responsive UI image caching via `setImageBitmap`.
 * Next Action: Await File explorer validations.
 
 

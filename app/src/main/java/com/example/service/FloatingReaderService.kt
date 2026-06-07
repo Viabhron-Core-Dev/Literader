@@ -1132,6 +1132,9 @@ class FloatingReaderService : Service() {
             val file = files[position]
             holder.tvName.text = file.name ?: "Unknown"
             
+            // clear previous tag
+            holder.ivIcon.tag = null
+            
             if (file.isDirectory) {
                 holder.ivIcon.setImageResource(android.R.drawable.ic_menu_agenda)
                 holder.ivIcon.setColorFilter(android.graphics.Color.parseColor("#FFD54F")) // Folder color
@@ -1141,17 +1144,52 @@ class FloatingReaderService : Service() {
                 holder.ivIcon.setColorFilter(android.graphics.Color.parseColor("#7FE9F9")) // File color
                 holder.tvSize.visibility = View.VISIBLE
                 
+                val ext = file.extension.uppercase()
                 val sizeBytes = file.length()
                 val sizeText = when {
                     sizeBytes > 1024 * 1024 -> String.format("%.2f MB", sizeBytes / (1024f * 1024f))
                     sizeBytes > 1024 -> String.format("%.1f KB", sizeBytes / 1024f)
                     else -> "$sizeBytes B"
                 }
-                holder.tvSize.text = sizeText
+                holder.tvSize.text = if (ext.isNotEmpty()) "$ext • $sizeText" else sizeText
+                
+                if (file.name.endsWith(".epub", true)) {
+                    holder.ivIcon.tag = file.absolutePath
+                    serviceScope.launch(Dispatchers.IO) {
+                        val bitmap = loadEpubCover(file)
+                        withContext(Dispatchers.Main) {
+                            if (holder.ivIcon.tag == file.absolutePath && bitmap != null) {
+                                holder.ivIcon.clearColorFilter()
+                                holder.ivIcon.setImageBitmap(bitmap)
+                            }
+                        }
+                    }
+                }
             }
         }
 
         override fun getItemCount() = files.size
+    }
+
+    private fun loadEpubCover(file: java.io.File): android.graphics.Bitmap? {
+        try {
+            java.util.zip.ZipFile(file).use { zip ->
+                val entries = zip.entries().asSequence().toList()
+                val coverEntry = entries.firstOrNull { 
+                    it.name.contains("cover", true) && 
+                    (it.name.endsWith(".jpg", true) || it.name.endsWith(".png", true) || it.name.endsWith(".jpeg", true)) 
+                } ?: entries.firstOrNull { 
+                    it.name.endsWith(".jpg", true) || it.name.endsWith(".png", true) || it.name.endsWith(".jpeg", true) 
+                }
+                
+                if (coverEntry != null) {
+                    val bytes = zip.getInputStream(coverEntry).readBytes()
+                    val opts = android.graphics.BitmapFactory.Options().apply { inSampleSize = 2 }
+                    return android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
+                }
+            }
+        } catch (e: Exception) {}
+        return null
     }
 
     private fun showExplorerContextMenu(file: java.io.File) {
