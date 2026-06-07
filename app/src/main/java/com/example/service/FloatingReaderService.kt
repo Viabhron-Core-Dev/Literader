@@ -105,6 +105,7 @@ class FloatingReaderService : Service() {
         }
 
         prefs = getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
+        loadSettingsFromPrefs()
         savedWindowWidth = prefs.getInt("win_w", 800)
         savedWindowHeight = prefs.getInt("win_h", 1200)
         
@@ -169,8 +170,10 @@ class FloatingReaderService : Service() {
     private lateinit var overlayLibrary: View
     private lateinit var overlayChapters: View
     private lateinit var overlaySettings: View
+    private lateinit var overlayBookmarks: View
     private lateinit var listLibrary: androidx.recyclerview.widget.RecyclerView
     private lateinit var listChapters: androidx.recyclerview.widget.RecyclerView
+    private lateinit var listBookmarks: androidx.recyclerview.widget.RecyclerView
 
     private fun initViews() {
         tvWindowTitle = floatingView.findViewById(R.id.tv_window_title)
@@ -231,8 +234,10 @@ class FloatingReaderService : Service() {
         overlayLibrary = floatingView.findViewById(R.id.overlay_library)
         overlayChapters = floatingView.findViewById(R.id.overlay_chapters)
         overlaySettings = floatingView.findViewById(R.id.overlay_settings)
+        overlayBookmarks = floatingView.findViewById(R.id.overlay_bookmarks)
         listLibrary = floatingView.findViewById(R.id.list_library)
         listChapters = floatingView.findViewById(R.id.list_chapters)
+        listBookmarks = floatingView.findViewById(R.id.list_bookmarks)
         floatingView.findViewById<Button>(R.id.btn_backup_data)?.setOnClickListener {
             showToast("Backup (No Books) saved to Downloads.")
             // Placeholder for actual zip backup implementation
@@ -314,6 +319,7 @@ class FloatingReaderService : Service() {
         overlayLibrary.visibility = View.GONE
         overlayChapters.visibility = View.GONE
         overlaySettings.visibility = View.GONE
+        overlayBookmarks.visibility = View.GONE
         floatingView.findViewById<View>(R.id.overlay_search).visibility = View.GONE
         scrollView.visibility = View.VISIBLE
     }
@@ -323,6 +329,35 @@ class FloatingReaderService : Service() {
     private var rootExplorerDir: java.io.File? = null
     private var explorerSortByName: Boolean = true
     private var explorerSortAscending: Boolean = true
+
+    private fun loadSettingsFromPrefs() {
+        currentLibraryTab = prefs.getString("last_library_tab", "Recent") ?: "Recent"
+        val lastDirPath = prefs.getString("last_explorer_dir", null)
+        explorerSortByName = prefs.getBoolean("explorer_sort_name", true)
+        explorerSortAscending = prefs.getBoolean("explorer_sort_asc", true)
+        if (lastDirPath != null) {
+            val dir = java.io.File(lastDirPath)
+            if (dir.exists() && dir.isDirectory) {
+                rootExplorerDir = android.os.Environment.getExternalStorageDirectory()
+                explorerStack.clear()
+                if (rootExplorerDir != null) explorerStack.add(rootExplorerDir!!)
+                if (dir.absolutePath != rootExplorerDir?.absolutePath) {
+                    explorerStack.add(dir) // simple stack recovery
+                }
+            }
+        }
+    }
+
+    private fun saveLibraryState() {
+        val editor = prefs.edit()
+        editor.putString("last_library_tab", currentLibraryTab)
+        editor.putBoolean("explorer_sort_name", explorerSortByName)
+        editor.putBoolean("explorer_sort_asc", explorerSortAscending)
+        explorerStack.lastOrNull()?.let {
+            editor.putString("last_explorer_dir", it.absolutePath)
+        }
+        editor.apply()
+    }
 
     private fun loadLibraryBooks() {
         val useScopedDir = prefs.getBoolean("use_scoped_dir", false)
@@ -423,28 +458,33 @@ class FloatingReaderService : Service() {
         
         floatingView.findViewById<Button>(R.id.btn_tab_recent)?.setOnClickListener {
             currentLibraryTab = "Recent"
+            saveLibraryState()
             loadLibraryBooks()
         }
         
         floatingView.findViewById<Button>(R.id.btn_tab_imported)?.setOnClickListener {
             currentLibraryTab = "Imported"
+            saveLibraryState()
             loadLibraryBooks()
         }
 
         floatingView.findViewById<View>(R.id.btn_explorer_up)?.setOnClickListener {
             if (explorerStack.size > 1) {
                 explorerStack.removeLast()
+                saveLibraryState()
                 loadLibraryBooks()
             }
         }
         
         floatingView.findViewById<View>(R.id.btn_sort_type)?.setOnClickListener {
             explorerSortByName = !explorerSortByName
+            saveLibraryState()
             loadLibraryBooks()
         }
         
         floatingView.findViewById<View>(R.id.btn_sort_order)?.setOnClickListener {
             explorerSortAscending = !explorerSortAscending
+            saveLibraryState()
             loadLibraryBooks()
         }
     }
@@ -471,6 +511,17 @@ class FloatingReaderService : Service() {
         tvWindowTitle.text = "Settings"
     }
 
+    private fun openBookmarksView() {
+        hideOverlays()
+        overlayBookmarks.visibility = View.VISIBLE
+        scrollView.visibility = View.GONE
+        toolbarContainer.visibility = View.GONE
+        tvWindowTitle.text = "Bookmarks"
+        // Setup bookmarks list dummy or just leave it blank for now
+        listBookmarks.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
+        // You could add an adapter here if bookmarks data exists
+    }
+
     private fun setupListeners() {
         val topDragBar = floatingView.findViewById<View>(R.id.top_drag_bar)
         val resizeHandle = floatingView.findViewById<View>(R.id.resize_handle)
@@ -484,7 +535,7 @@ class FloatingReaderService : Service() {
 
         bubbleIcon.setOnClickListener { setFolded(false) }
 
-        floatingView.findViewById<View>(R.id.btn_exit).setOnClickListener {
+        floatingView.findViewById<View>(R.id.btn_exit_bottom)?.setOnClickListener {
             saveCurrentPosition()
             stopSelf()
         }
@@ -562,7 +613,22 @@ class FloatingReaderService : Service() {
         }
         
         floatingView.findViewById<View>(R.id.btn_settings_back)?.setOnClickListener {
-            openLibraryView()
+            hideOverlays()
+            currentBook?.let { 
+                val displayTitle = it.title.replace(Regex("(?i)\\.epub$"), "")
+                tvWindowTitle.text = "$displayTitle (Ch ${currentChapterIndex + 1}/${it.totalChapters})"
+            }
+        }
+        floatingView.findViewById<View>(R.id.btn_bookmarks_back)?.setOnClickListener {
+            hideOverlays()
+            currentBook?.let { 
+                val displayTitle = it.title.replace(Regex("(?i)\\.epub$"), "")
+                tvWindowTitle.text = "$displayTitle (Ch ${currentChapterIndex + 1}/${it.totalChapters})"
+            }
+        }
+        
+        floatingView.findViewById<View>(R.id.btn_add_bookmark)?.setOnClickListener {
+            showToast("Bookmark added at Chapter ${currentChapterIndex + 1}")
         }
 
         // Toolbar Buttons
@@ -571,15 +637,12 @@ class FloatingReaderService : Service() {
         floatingView.findViewById<View>(R.id.btn_chapters).setOnClickListener {
             openChaptersView()
         }
-        floatingView.findViewById<View>(R.id.btn_minimize).setOnClickListener {
-            setFolded(true)
-        }
         floatingView.findViewById<View>(R.id.btn_minimize_bottom)?.setOnClickListener {
             setFolded(true)
         }
-        floatingView.findViewById<View>(R.id.btn_exit_toolbar).setOnClickListener {
-            saveCurrentPosition()
-            stopSelf()
+        
+        floatingView.findViewById<View>(R.id.btn_bookmarks)?.setOnClickListener {
+            openBookmarksView()
         }
         floatingView.findViewById<View>(R.id.btn_library).setOnClickListener {
             saveCurrentPosition()
@@ -601,6 +664,10 @@ class FloatingReaderService : Service() {
             val isSearchVisible = overlaySearch.visibility == View.VISIBLE
             overlaySearch.visibility = if (isSearchVisible) View.GONE else View.VISIBLE
             toolbarContainer.visibility = View.GONE
+        }
+        floatingView.findViewById<View>(R.id.btn_close_search)?.setOnClickListener {
+            floatingView.findViewById<View>(R.id.overlay_search).visibility = View.GONE
+            floatingView.findViewById<View>(R.id.overlay_search_results).visibility = View.GONE
         }
         
         val etSearch = floatingView.findViewById<EditText>(R.id.et_search)
@@ -734,7 +801,8 @@ class FloatingReaderService : Service() {
             if (overlayLibrary.visibility == View.VISIBLE || overlayChapters.visibility == View.VISIBLE || overlaySettings.visibility == View.VISIBLE) {
                 hideOverlays()
                 currentBook?.let { 
-                    tvWindowTitle.text = "${it.title} (Ch ${currentChapterIndex + 1}/${it.totalChapters})"
+                    val displayTitle = it.title.replace(Regex("(?i)\\.epub$"), "")
+                    tvWindowTitle.text = "$displayTitle (Ch ${currentChapterIndex + 1}/${it.totalChapters})"
                 }
             }
         }
@@ -850,7 +918,8 @@ class FloatingReaderService : Service() {
 
     private fun renderChapter(scrollY: Int, scrollToBottom: Boolean = false) {
         val book = currentBook ?: return
-        tvWindowTitle.text = "${book.title} (Ch ${currentChapterIndex + 1}/${book.totalChapters})"
+        val displayTitle = book.title.replace(Regex("(?i)\\.epub$"), "")
+        tvWindowTitle.text = "$displayTitle (Ch ${currentChapterIndex + 1}/${book.totalChapters})"
         
         tvContent.text = chapterContent
         val percent = if (book.totalChapters > 1) {
@@ -992,7 +1061,8 @@ class FloatingReaderService : Service() {
                 withContext(Dispatchers.Main) {
                     currentChapterIndex = targetChapterIndex
                     chapterContent = text
-                    tvWindowTitle.text = "${book.title} (Ch ${currentChapterIndex + 1}/${book.totalChapters})"
+                    val displayTitle = book.title.replace(Regex("(?i)\\.epub$"), "")
+                    tvWindowTitle.text = "$displayTitle (Ch ${currentChapterIndex + 1}/${book.totalChapters})"
                     tvContent.text = chapterContent
                     
                     val percent = if (book.totalChapters > 1) {
@@ -1174,7 +1244,26 @@ class FloatingReaderService : Service() {
         override fun getItemCount() = files.size
     }
 
+    private fun getCoverCacheDir(): java.io.File {
+        val root = android.os.Environment.getExternalStorageDirectory()
+        val cacheDir = java.io.File(root, "Books/VianReader/.covers")
+        if (!cacheDir.exists()) {
+            cacheDir.mkdirs()
+        }
+        return cacheDir
+    }
+
     private fun loadEpubCover(file: java.io.File): android.graphics.Bitmap? {
+        val cacheDir = getCoverCacheDir()
+        val cacheFile = java.io.File(cacheDir, "${file.absolutePath.hashCode()}.jpg")
+        
+        if (cacheFile.exists()) {
+            try {
+                val opts = android.graphics.BitmapFactory.Options().apply { inSampleSize = 2 }
+                return android.graphics.BitmapFactory.decodeFile(cacheFile.absolutePath, opts)
+            } catch (e: Exception) {}
+        }
+        
         try {
             java.util.zip.ZipFile(file).use { zip ->
                 val entries = zip.entries().asSequence().toList()
@@ -1187,6 +1276,13 @@ class FloatingReaderService : Service() {
                 
                 if (coverEntry != null) {
                     val bytes = zip.getInputStream(coverEntry).readBytes()
+                    
+                    try {
+                        java.io.FileOutputStream(cacheFile).use { fos ->
+                            fos.write(bytes)
+                        }
+                    } catch(e: Exception) {}
+                    
                     val opts = android.graphics.BitmapFactory.Options().apply { inSampleSize = 2 }
                     return android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
                 }

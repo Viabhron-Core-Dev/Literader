@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:width="108dp"
-        android:height="108dp"
-        android:drawable="@drawable/ic_custom_book_icon"
-        android:gravity="center" />
-</layer-list>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M31,63.928c3.315,-0.068 6.643,-0.74 9.873,-2.023l14.127,-6.155l14.127,6.155c3.23,1.282 6.558,1.954 9.873,2.023V30.999c0,0 -8.542,0 -24,-6V25C55,25 31,30.999 31,30.999V63.928zM55,67.653l-1.953,-0.851C49.912,65.435 46.54,64.836 43.167,64.912V90c0,0 8.542,-5.999 24,-5.999V40.231c-3.372,-0.076 -6.745,0.523 -9.88,1.889L55,43.085L55,67.653zM53,67.653l-2.287,-0.965C47.578,65.361 44.205,64.762 40.833,64.838v25.088c0,0 8.542,-5.999 24,-5.999V40.155c-3.372,-0.076 -6.745,0.523 -9.88,1.889L53,43.011L53,67.653z"/>
+</vector>

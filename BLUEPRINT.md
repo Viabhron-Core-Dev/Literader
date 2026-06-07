@@ -115,11 +115,32 @@ System is fully rebuilt from scratch post-workspace wipe. Ready for deployment.
 ### Phase 23: Icon Reload
 - [x] Processed new imported user icon replacement and populated directly over `ic_custom_book_icon.png` in resources for app launcher and splash views.
 
+### Phase 24: Float Layout Adjustments & App Optimization
+- [x] Softened the sharp borders of the floating overlay window by moving the background style to a `bg_floating_window.xml` rounded 14dp shape drawable.
+- [x] Minified the application payload by converting the heavy `ic_custom_book_icon.png` resource to a compressed `.webp` format utilizing server-side command-line converters, dramatically dropping APK weight.
+
+### Phase 25: Reader Strip Revamp & VianReader Migration
+- [x] Renamed core metadata strings and framework IDs dropping LiteReader for `VianReader`.
+- [x] Built a persistent public cache hook inside `Internal Storage/Books/VianReader/.covers/` to save extracted EPUB covers independent from internal sandboxing memory.
+- [x] Stripped down the top drag bar to an explicit 2-line title wrap, scrubbing `.epub` file extensions from display logic in `FloatingReaderService.kr`.
+- [x] Restructured bottom right window corner pooling dragging, folding, and closing triggers tightly against a shared linear layout with red, green, grey semantics.
+- [x] Integrated a discrete search-close cross vector icon alongside chapter/full search actions.
+
+### Phase 26: Complete Navigation & System Redesign
+- [x] Swapped all generic Android UI icons out for proper Custom Vector Drawables representing Resize, Minimize, Library, Chapters, Settings, Auto-Scroll, and Bookmarks.
+- [x] Adjusted `FloatingReaderService` `tvContent` text fields to strictly `textIsSelectable=true` permitting standard Android Text selection hooks behind the floating layout window context.
+- [x] Reshaped the `layout_floating_reader` structure converting the fat bottom SeekBar into a thin 4dp UI line spanning the horizon. Set to invisible handles `@0` bounding the actual text view.
+- [x] Corrected back-button behavior globally across Settings and the new Bookmarks view natively hiding the view instead of artificially navigating backward.
+- [x] Overhauled UI saving using robust `SharedPreferences` interceptors storing `currentLibraryTab`, `explorerSortAscending`, and Explorer nested directory navigation `File` instances locally across boot.
+- [x] Bound a mocked 'Save Bookmark' system toast to intercept Bookmarks array inserts.
+
 ### Progress Update
-* Blueprint Status: Phase 23
+* Blueprint Status: Phase 26
 * Files Synchronized:
-  - `ic_custom_book_icon.png`: Replaced with new uploaded asset.
-* Next Action: Await approvals or test flights.
+  - `ic_*.xml`: Custom vector creations across native tools.
+  - `layout_floating_reader.xml`: Thin progress bar and custom bookmarks layout overlay.
+  - `FloatingReaderService.kt`: Persisted directory states, removed dead reference IDs, allowed TextView selectability.
+* Next Action: Await next task.
 
 
 
