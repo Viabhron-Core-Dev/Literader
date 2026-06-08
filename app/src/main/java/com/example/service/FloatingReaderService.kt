@@ -64,6 +64,8 @@ class FloatingReaderService : Service() {
     // Auto Scroll State
     private var isAutoScrolling = false
     private val scrollHandler = Handler(Looper.getMainLooper())
+    private var mediaSession: android.media.session.MediaSession? = null
+
     private val scrollRunnable = object : Runnable {
         override fun run() {
             if (isAutoScrolling) {
@@ -89,14 +91,18 @@ class FloatingReaderService : Service() {
             manager.createNotificationChannel(channel)
         }
 
+        val notificationIntent = android.content.Intent(this, com.example.MainActivity::class.java)
+        val pendingIntent = android.app.PendingIntent.getActivity(this, 0, notificationIntent, android.app.PendingIntent.FLAG_IMMUTABLE)
+
         val notification = androidx.core.app.NotificationCompat.Builder(this, "reader_channel")
             .setContentTitle("LiteReader")
             .setContentText("Reading active")
             .setSmallIcon(android.R.drawable.ic_media_play)
+            .setContentIntent(pendingIntent)
             .build()
             
-        val mediaSession = android.media.session.MediaSession(this, "FloatingReader")
-        mediaSession.isActive = true
+        mediaSession = android.media.session.MediaSession(this, "FloatingReader")
+        mediaSession?.isActive = true
 
         if (Build.VERSION.SDK_INT >= 29) {
             startForeground(1, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
@@ -1583,6 +1589,8 @@ class FloatingReaderService : Service() {
 
     override fun onDestroy() {
         saveCurrentPosition()
+        mediaSession?.isActive = false
+        mediaSession?.release()
         if (::tts.isInitialized) {
             tts.stop()
             tts.shutdown()

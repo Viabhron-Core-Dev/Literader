@@ -146,11 +146,18 @@ System is fully rebuilt from scratch post-workspace wipe. Ready for deployment.
 - [x] Re-routed the android SAF generic file picker to intercept `*/*` payload triggers and invoke a fake "Extract & Restitch" engine.
 - [x] Mocked the rough landing by automatically mapping discovered `.po` zip signatures backward into `AppDatabase`'s `TrackerBook` entries, intelligently updating `readChapters` and `lastUpdatedTimestamp`.
 
+### Phase 29: Core Stability & Vulnerability Fixes
+- [x] Secured MediaSession lifecycles inside `FloatingReaderService.kt` to avoid phantom instances continuing after garbage collection.
+- [x] Plugged Notification pending intents by appending explicit `PendingIntent` declarations, fixing UI un-interactivity warnings for foreground tasks.
+- [x] Created `BootReceiver` hook configured to restore existing Reader sessions seamlessly if a reboot interrupted an ongoing task and the reader was active. 
+
 ### Progress Update
-* Blueprint Status: Phase 28
+* Blueprint Status: Phase 29
 * Files Synchronized:
-  - `TrackerActivity.kt`: Implemented Android SAF file picker callbacks with Coroutine simulated extraction/parsing steps to update Tracker logs.
-* Next Action: Await final app stabilization or export.
+  - `AndroidManifest.xml`: Registered Boot complete broadcast capabilities natively.
+  - `BootReceiver.kt`: Integrated standard intent interceptions auto-booting active window sessions securely.
+  - `FloatingReaderService.kt`: Plumbed `MediaSession` scopes to explicitly tear-down parallel to system UI bounds.
+* Next Action: Await validation or deployment.
 
 
 
