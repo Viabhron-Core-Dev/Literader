@@ -151,12 +151,23 @@ System is fully rebuilt from scratch post-workspace wipe. Ready for deployment.
 - [x] Plugged Notification pending intents by appending explicit `PendingIntent` declarations, fixing UI un-interactivity warnings for foreground tasks.
 - [x] Created `BootReceiver` hook configured to restore existing Reader sessions seamlessly if a reboot interrupted an ongoing task and the reader was active. 
 
+### Phase 30: Context-Aware Text-To-Speech (TTS)
+- [x] Reworked the TTS `speak()` logic within `toggleTts()`.
+- [x] Tied the parsing pointer to `scrollView.scrollY`, automatically jumping the audio queue to whatever line is actively visible inside the window bounds instead of beginning from the start of the chapter.
+
+### Phase 31: App Icon Fix
+- [x] Transferred custom uploaded app icons (`app_icon.png` folder mappings) to the system standard res structure (`mipmap` hdpi -> xxxhdpi).
+- [x] Fixed `.png.png` double extensions.
+- [x] Standardized `adaptive_fore` and `adaptive_back` layers in `anydpi-v26` and mapped XML correctly to standard `app_icon` paths.
+
+### Phase 32: Diagnostics & Lazy Initialisation
+- [x] Repaired aggressive startup latency in `FloatingReaderService` by detaching Text-To-Speech from the service `onCreate` lifecycle constraint.
+- [x] Made `tts` instance completely lazy/on-demand so memory allocations are deferred specifically to explicitly invoked auditory actions via `executeTtsToggle()`.
+
 ### Progress Update
-* Blueprint Status: Phase 29
+* Blueprint Status: Phase 32
 * Files Synchronized:
-  - `AndroidManifest.xml`: Registered Boot complete broadcast capabilities natively.
-  - `BootReceiver.kt`: Integrated standard intent interceptions auto-booting active window sessions securely.
-  - `FloatingReaderService.kt`: Plumbed `MediaSession` scopes to explicitly tear-down parallel to system UI bounds.
+  - `FloatingReaderService.kt`: Upgraded `TTS` logic to late-lazy instantiations.
 * Next Action: Await validation or deployment.
 
 

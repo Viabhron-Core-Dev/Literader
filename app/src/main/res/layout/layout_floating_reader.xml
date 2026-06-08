@@ -220,7 +220,7 @@
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="48dp"
+                    android:layout_height="36dp"
                     android:orientation="horizontal"
                     android:background="#111111">
                     <Button
@@ -230,6 +230,9 @@
                         android:layout_weight="1"
                         android:text="Recent"
                         android:textColor="#FFFFFF"
+                        android:textSize="13sp"
+                        android:padding="0dp"
+                        android:minHeight="0dp"
                         style="?android:attr/borderlessButtonStyle" />
                     <Button
                         android:id="@+id/btn_tab_imported"
@@ -238,6 +241,9 @@
                         android:layout_weight="1"
                         android:text="Imported"
                         android:textColor="#FFFFFF"
+                        android:textSize="13sp"
+                        android:padding="0dp"
+                        android:minHeight="0dp"
                         style="?android:attr/borderlessButtonStyle" />
                 </LinearLayout>
 
@@ -245,11 +251,12 @@
                 <LinearLayout
                     android:id="@+id/bar_explorer_tools"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="36dp"
                     android:orientation="horizontal"
                     android:background="#151515"
                     android:paddingHorizontal="16dp"
-                    android:paddingVertical="8dp"
+                    android:paddingVertical="4dp"
+                    android:gravity="center_vertical"
                     android:visibility="gone">
                     <ImageButton
                         android:id="@+id/btn_explorer_up"

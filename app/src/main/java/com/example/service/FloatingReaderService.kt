@@ -56,7 +56,7 @@ class FloatingReaderService : Service() {
     private var foldedY = 0
 
     private lateinit var prefs: SharedPreferences
-    private lateinit var tts: TextToSpeech
+    private var tts: TextToSpeech? = null
     private var isTtsReady = false
     private var isSpeaking = false
     private lateinit var btnTts: ImageView
@@ -114,13 +114,6 @@ class FloatingReaderService : Service() {
         loadSettingsFromPrefs()
         savedWindowWidth = prefs.getInt("win_w", 800)
         savedWindowHeight = prefs.getInt("win_h", 1200)
-        
-        tts = TextToSpeech(this) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                tts.language = Locale.US
-                isTtsReady = true
-            }
-        }
         
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         setupFloatingView()
@@ -1211,18 +1204,36 @@ class FloatingReaderService : Service() {
     }
 
     private fun toggleTts() {
+        if (tts == null) {
+            tts = TextToSpeech(this) { status ->
+                if (status == TextToSpeech.SUCCESS) {
+                    tts?.language = Locale.US
+                    isTtsReady = true
+                    executeTtsToggle()
+                } else {
+                    showToast("TTS failed to initialize")
+                }
+            }
+            return
+        }
+        executeTtsToggle()
+    }
+
+    private fun executeTtsToggle() {
         if (!isTtsReady) {
             showToast("TTS not ready")
             return
         }
         if (isSpeaking) {
-            tts.stop()
+            tts?.stop()
             isSpeaking = false
             btnTts.setImageResource(android.R.drawable.ic_media_play)
         } else {
-            val chunks = chapterContent.chunked(3000)
+            val offset = tvContent.layout?.getLineStart(tvContent.layout?.getLineForVertical(scrollView.scrollY) ?: 0) ?: 0
+            val textToSpeak = chapterContent.substring(offset)
+            val chunks = textToSpeak.chunked(3000)
             for (chunk in chunks) {
-                tts.speak(chunk, TextToSpeech.QUEUE_ADD, null, null)
+                tts?.speak(chunk, TextToSpeech.QUEUE_ADD, null, null)
             }
             isSpeaking = true
             btnTts.setImageResource(android.R.drawable.ic_media_pause)
@@ -1630,10 +1641,8 @@ class FloatingReaderService : Service() {
         saveCurrentPosition()
         mediaSession?.isActive = false
         mediaSession?.release()
-        if (::tts.isInitialized) {
-            tts.stop()
-            tts.shutdown()
-        }
+        tts?.stop()
+        tts?.shutdown()
         scrollHandler.removeCallbacks(scrollRunnable)
         serviceScope.cancel()
         if (::windowManager.isInitialized && ::floatingView.isInitialized) {

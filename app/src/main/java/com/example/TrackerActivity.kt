@@ -65,7 +65,7 @@ fun TrackerScreen(onBack: () -> Unit, db: AppDatabase) {
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val moonImportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+        contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
             coroutineScope.launch(Dispatchers.IO) {
@@ -125,7 +125,7 @@ fun TrackerScreen(onBack: () -> Unit, db: AppDatabase) {
                 },
                 actions = {
                     IconButton(onClick = { 
-                        moonImportLauncher.launch("*/*")
+                        moonImportLauncher.launch(arrayOf("*/*"))
                     }) {
                         Icon(Icons.Default.CloudDownload, contentDescription = "Import Moon+ Backup")
                     }
