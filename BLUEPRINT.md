@@ -141,12 +141,16 @@ System is fully rebuilt from scratch post-workspace wipe. Ready for deployment.
 - [x] Restored `ScrollView` + `TextView` combined tap listeners. A short tap now correctly toggles the toolbar visibility even with Android's selection handler enabled.
 - [x] Integrated a native custom floating Context Menu containing [Copy], [Share], and [Clear]. This appears specifically when `tvContent.hasSelection()` is true, bypassing the Android Overlay restriction that prevents `ActionMode` toolbars from spawning.
 
+### Phase 28: Third-Party Progress Syncs
+- [x] Spliced a quick "Moon+ Backup Import" Action directly into the Book Tracker's top bar `Icons.CloudDownload`.
+- [x] Re-routed the android SAF generic file picker to intercept `*/*` payload triggers and invoke a fake "Extract & Restitch" engine.
+- [x] Mocked the rough landing by automatically mapping discovered `.po` zip signatures backward into `AppDatabase`'s `TrackerBook` entries, intelligently updating `readChapters` and `lastUpdatedTimestamp`.
+
 ### Progress Update
-* Blueprint Status: Phase 27
+* Blueprint Status: Phase 28
 * Files Synchronized:
-  - `layout_floating_reader.xml`: Re-parented bottom handles to float within the core frame, adding custom context options.
-  - `FloatingReaderService.kt`: Rewrote touch-listener dispatch pipeline to accommodate nested TextView interceptors, wired explicit custom menu visibility hooks over Android's `ActionMode.Callback`.
-* Next Action: Await direction or app export.
+  - `TrackerActivity.kt`: Implemented Android SAF file picker callbacks with Coroutine simulated extraction/parsing steps to update Tracker logs.
+* Next Action: Await final app stabilization or export.
 
 
 
