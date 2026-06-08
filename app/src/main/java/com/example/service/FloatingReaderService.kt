@@ -546,6 +546,7 @@ class FloatingReaderService : Service() {
         overlayBookmarks.visibility = View.VISIBLE
         toolbarContainer.visibility = View.GONE
         listBookmarks.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
+        listBookmarks.adapter = BookmarkAdapter()
     }
 
     private fun setupListeners() {
@@ -646,6 +647,18 @@ class FloatingReaderService : Service() {
         }
         
         floatingView.findViewById<View>(R.id.btn_add_bookmark)?.setOnClickListener {
+            val offset = tvContent.layout?.getLineStart(tvContent.layout?.getLineForVertical(scrollView.scrollY) ?: 0) ?: 0
+            val content = tvContent.text.toString().substring(offset).trim()
+            val words = if (content.length > 50) content.substring(0, 50).replace("\n", " ").trim() + "..." else content
+            var percent = 0
+            val totalChapters = currentBook?.totalChapters ?: 0
+            if (totalChapters > 0) {
+                val scrollY = scrollView.scrollY
+                val maxScrollY = tvContent.height - scrollView.height
+                val currentChapterPercent = if (maxScrollY > 0) (scrollY.toFloat() / maxScrollY) else 0f
+                percent = (((currentChapterIndex + currentChapterPercent) * 100) / totalChapters).toInt()
+            }
+            bookmarksList.add(0, BookmarkItem(words, currentChapterIndex, percent))
             showToast("Bookmark added at Chapter ${currentChapterIndex + 1}")
         }
 
@@ -677,7 +690,7 @@ class FloatingReaderService : Service() {
             }
             floatingView.findViewById<View>(R.id.custom_selection_menu)?.visibility = View.GONE
             // Clear selection
-            tvContent.text = tvContent.text 
+            (tvContent.text as? android.text.Spannable)?.let { android.text.Selection.removeSelection(it) }
         }
 
         floatingView.findViewById<View>(R.id.btn_share_text)?.setOnClickListener {
@@ -699,13 +712,13 @@ class FloatingReaderService : Service() {
             }
             floatingView.findViewById<View>(R.id.custom_selection_menu)?.visibility = View.GONE
             // Clear selection
-            tvContent.text = tvContent.text 
+            (tvContent.text as? android.text.Spannable)?.let { android.text.Selection.removeSelection(it) }
         }
 
         floatingView.findViewById<View>(R.id.btn_close_selection)?.setOnClickListener {
             floatingView.findViewById<View>(R.id.custom_selection_menu)?.visibility = View.GONE
             // Clear selection
-            tvContent.text = tvContent.text 
+            (tvContent.text as? android.text.Spannable)?.let { android.text.Selection.removeSelection(it) }
         }
         
         floatingView.findViewById<View>(R.id.btn_bookmarks)?.setOnClickListener {
@@ -1500,6 +1513,32 @@ class FloatingReaderService : Service() {
         }
 
         override fun getItemCount() = books.size
+    }
+
+    private data class BookmarkItem(val words: String, val chapter: Int, val percentage: Int)
+    
+    private val bookmarksList = mutableListOf<BookmarkItem>()
+
+    private inner class BookmarkAdapter : androidx.recyclerview.widget.RecyclerView.Adapter<BookmarkAdapter.BookmarkViewHolder>() {
+        inner class BookmarkViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
+            val tvWords: TextView = view.findViewById(R.id.tv_bookmark_words)
+            val tvChapter: TextView = view.findViewById(R.id.tv_bookmark_chapter)
+            val tvPercent: TextView = view.findViewById(R.id.tv_bookmark_percent)
+        }
+
+        override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): BookmarkViewHolder {
+            val view = android.view.LayoutInflater.from(parent.context).inflate(R.layout.item_bookmark, parent, false)
+            return BookmarkViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: BookmarkViewHolder, position: Int) {
+            val bm = bookmarksList[position]
+            holder.tvWords.text = bm.words
+            holder.tvChapter.text = "Chapter ${bm.chapter + 1}"
+            holder.tvPercent.text = "${bm.percentage}%"
+        }
+
+        override fun getItemCount() = bookmarksList.size
     }
         
     private inner class ChapterAdapter(val totalChapters: Int) : androidx.recyclerview.widget.RecyclerView.Adapter<ChapterAdapter.ChapterViewHolder>() {

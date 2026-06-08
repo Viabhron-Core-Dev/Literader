@@ -71,9 +71,9 @@ fun TrackerScreen(onBack: () -> Unit, db: AppDatabase) {
             coroutineScope.launch(Dispatchers.IO) {
                 try {
                     withContext(Dispatchers.Main) {
-                        android.widget.Toast.makeText(context, "Scanning Moon+ backup...", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, "Scanning Moon+ backup (.mrstd)...", android.widget.Toast.LENGTH_SHORT).show()
                     }
-                    kotlinx.coroutines.delay(2000) // Simulate zip extraction and SQLite / .po parsing
+                    kotlinx.coroutines.delay(2000) // Simulate .mrstd extraction and SQLite / .po parsing
                     var updated = 0
                     val existingTrackerBooks = db.trackerDao().getAllBooks()
                     for (b in existingTrackerBooks) {
