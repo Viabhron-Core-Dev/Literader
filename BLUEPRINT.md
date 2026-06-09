@@ -164,10 +164,18 @@ System is fully rebuilt from scratch post-workspace wipe. Ready for deployment.
 - [x] Repaired aggressive startup latency in `FloatingReaderService` by detaching Text-To-Speech from the service `onCreate` lifecycle constraint.
 - [x] Made `tts` instance completely lazy/on-demand so memory allocations are deferred specifically to explicitly invoked auditory actions via `executeTtsToggle()`.
 
+### Phase 33: Floating Window Layout Refinement
+- [x] Streamlined the Library view top header bar, reducing the fat padding gaps and shaving the text down directly to simply "Library".
+- [x] Extracted the persistent bottom window control modules (Close, Minimize, Resize) out of the deep frame layout constraint structure.
+- [x] Repositioned the window controls to strictly float atop the absolute highest UI layer inside the wrapper. Providing a seamless interface that guarantees the controls are ever-present across Library, Search, Bookmarks, and Settings overlays independently.
+- [x] Inserted a sleek red-tinted cross vector icon into the `item_bookmark` adapter cards directly mapping cleanly to the real-time delete commands across the Room instance.
+
 ### Progress Update
-* Blueprint Status: Phase 32
+* Blueprint Status: Phase 33
 * Files Synchronized:
-  - `FloatingReaderService.kt`: Upgraded `TTS` logic to late-lazy instantiations.
+  - `item_bookmark.xml`: Bound inline deletion cross mapping structural deletes cleanly.
+  - `layout_floating_reader.xml`: Transposed Window Handle bindings atop overlay instances.
+  - `FloatingReaderService.kt`: Re-hooked dynamic `loadAndJumpToOffset` function triggers ensuring bookmark array tap logic works properly.
 * Next Action: Await validation or deployment.
 
 

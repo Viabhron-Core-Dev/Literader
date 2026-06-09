@@ -73,37 +73,130 @@ fun TrackerScreen(onBack: () -> Unit, db: AppDatabase) {
                     withContext(Dispatchers.Main) {
                         android.widget.Toast.makeText(context, "Scanning Moon+ backup (.mrstd)...", android.widget.Toast.LENGTH_SHORT).show()
                     }
-                    kotlinx.coroutines.delay(2000) // Simulate .mrstd extraction and SQLite / .po parsing
                     var updated = 0
                     val existingTrackerBooks = db.trackerDao().getAllBooks()
-                    for (b in existingTrackerBooks) {
-                        if (b.readChapters == 0 && b.totalChapters > 0) {
-                            // Rough landing simulation: assume we found position records mapping to these titles
-                            db.trackerDao().insertBook(b.copy(
-                                readChapters = (1..b.totalChapters).random(),
-                                lastUpdatedTimestamp = System.currentTimeMillis()
-                            ))
-                            updated++
+                    
+                    val tempFile = java.io.File(context.cacheDir, "moon_import_tmp")
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        java.io.FileOutputStream(tempFile).use { it.write(input.readBytes()) }
+                    }
+
+                    // Attempt to parse as Zip (mrstd is usually a flattened zip of .po files and .db)
+                    val extractDir = java.io.File(context.cacheDir, "moon_extracted")
+                    extractDir.deleteRecursively()
+                    extractDir.mkdirs()
+                    
+                    var isZip = false
+                    try {
+                        java.util.zip.ZipInputStream(java.io.FileInputStream(tempFile)).use { zis ->
+                            var entry = zis.nextEntry
+                            while (entry != null) {
+                                isZip = true
+                                val outFile = java.io.File(extractDir, entry.name.replace("/", "_"))
+                                java.io.FileOutputStream(outFile).use { zis.copyTo(it) }
+                                entry = zis.nextEntry
+                            }
+                        }
+                    } catch (e: Exception) { }
+
+                    val filesToScan = if (isZip) extractDir.listFiles()?.toList() ?: emptyList() else listOf(tempFile)
+                    
+                    for (file in filesToScan) {
+                        try {
+                            // Attempt SQLite read (Moon+ usually has a books.db or moonreader.db inside)
+                            val moonDb = android.database.sqlite.SQLiteDatabase.openDatabase(file.absolutePath, null, android.database.sqlite.SQLiteDatabase.OPEN_READONLY)
+                            // Look for 'books' table
+                            val cursor = moonDb.rawQuery("SELECT * FROM sqlite_master WHERE type='table' AND name LIKE '%book%'", null)
+                            var tableName: String? = null
+                            if (cursor.moveToFirst()) {
+                                tableName = cursor.getString(cursor.getColumnIndexOrThrow("name"))
+                            }
+                            cursor.close()
+                            
+                            if (tableName != null) {
+                                val booksCursor = moonDb.rawQuery("SELECT * FROM $tableName", null)
+                                val cols = booksCursor.columnNames
+                                val titleIdx = cols.indexOfFirst { it.equals("title", true) || it.equals("name", true) || it.contains("book", true) }
+                                val authorIdx = cols.indexOfFirst { it.equals("author", true) }
+                                val chaptersIdx = cols.indexOfFirst { it.contains("chap", true) || it.equals("total", true) }
+                                
+                                while (booksCursor.moveToNext()) {
+                                    if (titleIdx != -1) {
+                                        val title = booksCursor.getString(titleIdx) ?: continue
+                                        val author = if (authorIdx != -1) booksCursor.getString(authorIdx) else "Unknown"
+                                        val totalCh = if (chaptersIdx != -1) booksCursor.getInt(chaptersIdx) else 0
+                                        
+                                        val existing = existingTrackerBooks.find { it.title.equals(title, true) }
+                                        if (existing != null) {
+                                            db.trackerDao().insertBook(existing.copy(
+                                                totalChapters = if (totalCh > existing.totalChapters) totalCh else existing.totalChapters,
+                                                lastUpdatedTimestamp = System.currentTimeMillis()
+                                            ))
+                                            updated++
+                                        } else {
+                                            db.trackerDao().insertBook(TrackerBook(
+                                                title = title, author = author ?: "Unknown",
+                                                readChapters = 0, totalChapters = totalCh,
+                                                genres = "Moon+ Backup", addedTimestamp = System.currentTimeMillis(),
+                                                lastUpdatedTimestamp = System.currentTimeMillis()
+                                            ))
+                                            updated++
+                                        }
+                                    }
+                                }
+                                booksCursor.close()
+                            }
+                            moonDb.close()
+                        } catch (e: Exception) {
+                            // Not a typical SQLite DB, maybe a .po file?
+                            if (file.name.endsWith(".po") || file.name.endsWith(".txt")) {
+                                val content = file.readText(Charsets.UTF_8).take(1000) // read head
+                                // very rough heuristic for .po (text stat configs)
+                                val titleMatch = Regex("(?i)title[=:]\\s*(.+)").find(content)
+                                if (titleMatch != null) {
+                                    val title = titleMatch.groupValues[1].trim()
+                                    val existing = existingTrackerBooks.find { it.title.equals(title, true) }
+                                    if (existing == null) {
+                                        db.trackerDao().insertBook(TrackerBook(
+                                            title = title, author = "Unknown", readChapters = 0, totalChapters = 0,
+                                            genres = "Moon+ Backup", addedTimestamp = System.currentTimeMillis(),
+                                            lastUpdatedTimestamp = System.currentTimeMillis()
+                                        ))
+                                        updated++
+                                    }
+                                }
+                            }
                         }
                     }
                     
-                    if (updated == 0 && existingTrackerBooks.isEmpty()) {
-                        // Insert a mock imported book to prove it works when empty
-                        db.trackerDao().insertBook(TrackerBook(
-                            title = "Moon+ Backup Restored Book",
-                            author = "Unknown",
-                            readChapters = 15,
-                            totalChapters = 40,
-                            genres = "Imported",
-                            addedTimestamp = System.currentTimeMillis(),
-                            lastUpdatedTimestamp = System.currentTimeMillis()
-                        ))
-                        updated = 1
+                    if (updated == 0) {
+                        try {
+                            // Fallback 2: Read it as a plain CSV or TSV (like our own backups) if it's not a ZIP
+                            val content = tempFile.readText(Charsets.UTF_8)
+                            val lines = content.lines()
+                            for (line in lines.drop(1)) { // skip header
+                                val parts = line.split('\t')
+                                if (parts.size >= 4) {
+                                    db.trackerDao().insertBook(TrackerBook(
+                                        title = parts[0], author = parts[1],
+                                        totalChapters = parts[2].toIntOrNull() ?: 0,
+                                        readChapters = parts[3].toIntOrNull() ?: 0,
+                                        isFinished = if (parts.size > 4) parts[4].toBoolean() else false,
+                                        isWebNovel = if (parts.size > 5) parts[5].toBoolean() else false,
+                                        genres = if (parts.size > 6) parts[6] else "",
+                                        rating = if (parts.size > 7) parts[7].toFloatOrNull() ?: 0f else 0f,
+                                        addedTimestamp = System.currentTimeMillis(),
+                                        lastUpdatedTimestamp = System.currentTimeMillis()
+                                    ))
+                                    updated++
+                                }
+                            }
+                        } catch (e: Exception) { }
                     }
                     
                     reloadBooks()
                     withContext(Dispatchers.Main) {
-                        android.widget.Toast.makeText(context, "Moon+ Backup synced! Updated/imported $updated books.", android.widget.Toast.LENGTH_LONG).show()
+                        android.widget.Toast.makeText(context, "Moon+ Backup parsed! Imported/Updated $updated items.", android.widget.Toast.LENGTH_LONG).show()
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {

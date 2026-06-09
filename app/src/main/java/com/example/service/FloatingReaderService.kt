@@ -367,9 +367,21 @@ class FloatingReaderService : Service() {
             if (dir.exists() && dir.isDirectory) {
                 rootExplorerDir = android.os.Environment.getExternalStorageDirectory()
                 explorerStack.clear()
-                if (rootExplorerDir != null) explorerStack.add(rootExplorerDir!!)
-                if (dir.absolutePath != rootExplorerDir?.absolutePath) {
-                    explorerStack.add(dir) // simple stack recovery
+                if (rootExplorerDir != null) {
+                    explorerStack.add(rootExplorerDir!!)
+                    var current: java.io.File? = dir
+                    val temp = mutableListOf<java.io.File>()
+                    while (current != null && current.absolutePath != rootExplorerDir?.absolutePath) {
+                        temp.add(0, current)
+                        current = current.parentFile
+                    }
+                    if (current?.absolutePath == rootExplorerDir?.absolutePath) {
+                        explorerStack.addAll(temp)
+                    } else {
+                        explorerStack.clear()
+                        explorerStack.add(rootExplorerDir!!)
+                        explorerStack.add(dir) // simple stack recovery
+                    }
                 }
             }
         }
@@ -1256,6 +1268,7 @@ class FloatingReaderService : Service() {
                         val file = files[pos]
                         if (file.isDirectory) {
                             explorerStack.add(file)
+                            saveLibraryState()
                             loadLibraryBooks()
                         } else {
                             // Try importing it if not already in db, then open
@@ -1535,6 +1548,26 @@ class FloatingReaderService : Service() {
             val tvWords: TextView = view.findViewById(R.id.tv_bookmark_words)
             val tvChapter: TextView = view.findViewById(R.id.tv_bookmark_chapter)
             val tvPercent: TextView = view.findViewById(R.id.tv_bookmark_percent)
+            val btnDelete: ImageView = view.findViewById(R.id.btn_delete_bookmark)
+            
+            init {
+                view.setOnClickListener {
+                    val pos = adapterPosition
+                    if (pos != androidx.recyclerview.widget.RecyclerView.NO_POSITION) {
+                        val bm = bookmarksList[pos]
+                        loadAndJumpToOffset(bm.chapter, 0)
+                        floatingView.findViewById<View>(R.id.overlay_bookmarks)?.visibility = View.GONE
+                    }
+                }
+                btnDelete.setOnClickListener {
+                    val pos = adapterPosition
+                    if (pos != androidx.recyclerview.widget.RecyclerView.NO_POSITION) {
+                        bookmarksList.removeAt(pos)
+                        notifyItemRemoved(pos)
+                        notifyItemRangeChanged(pos, bookmarksList.size)
+                    }
+                }
+            }
         }
 
         override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): BookmarkViewHolder {
