@@ -342,6 +342,8 @@
                         <Switch android:id="@+id/switch_bookmarks" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Enable Bookmarks UI" android:textColor="#CCC" android:paddingVertical="8dp"/>
                         <Switch android:id="@+id/switch_theme" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Light Theme" android:textColor="#CCC" android:paddingVertical="8dp"/>
                         
+                        <Switch android:id="@+id/switch_keep_screen_on" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Keep Screen On" android:textColor="#CCC" android:paddingVertical="8dp"/>
+                        
                         <Switch android:id="@+id/switch_scoped_dir" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Enable Full File Explorer" android:textColor="#CCC" android:paddingVertical="8dp"/>
                         <Button android:id="@+id/btn_grant_storage" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Grant Storage Permission" android:layout_marginTop="4dp" android:visibility="gone"/>
                         
@@ -516,6 +518,51 @@
                 android:background="#E6111111"
                 android:visibility="gone">
 
+                <!-- Thin Line Progress bar -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingTop="2dp"
+                    android:paddingBottom="2dp"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="4dp">
+                    
+                    <ImageView android:id="@+id/btn_prev"
+                        android:layout_width="24dp" android:layout_height="24dp" android:padding="4dp"
+                        android:src="@android:drawable/ic_media_previous" android:tint="#AAAAAA" />
+                        
+                    <TextView
+                        android:id="@+id/tv_progress"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="#FFFFFF"
+                        android:textSize="10sp"
+                        android:textStyle="bold"
+                        android:layout_marginStart="2dp"
+                        android:layout_marginEnd="2dp"
+                        android:text="82%" />
+                    
+                    <SeekBar
+                        android:id="@+id/seek_progress"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:minHeight="4dp"
+                        android:maxHeight="4dp"
+                        android:thumbTint="#00000000"
+                        android:paddingStart="0dp"
+                        android:paddingEnd="0dp"
+                        android:progressDrawable="@android:drawable/progress_horizontal"
+                        android:progressTint="#7FE9F9"/>
+                        
+                    <ImageView android:id="@+id/btn_next"
+                        android:layout_width="24dp" android:layout_height="24dp" android:padding="4dp"
+                        android:layout_marginStart="2dp"
+                        android:src="@android:drawable/ic_media_next" android:tint="#AAAAAA" />
+                </LinearLayout>
+
                 <!-- Below buttons: Compact set of main actions -->
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -561,49 +608,18 @@
                         android:contentDescription="Settings" />
                 </LinearLayout>
 
-                <!-- Thin Line Progress bar -->
                 <LinearLayout
+                    android:id="@+id/fullscreen_close_container"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:paddingTop="2dp"
-                    android:paddingBottom="2dp"
-                    android:paddingStart="4dp"
-                    android:paddingEnd="4dp">
-                    
-                    <ImageView android:id="@+id/btn_prev"
-                        android:layout_width="24dp" android:layout_height="24dp" android:padding="4dp"
-                        android:src="@android:drawable/ic_media_previous" android:tint="#AAAAAA" />
-                        
-                    <TextView
-                        android:id="@+id/tv_progress"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textColor="#FFFFFF"
-                        android:textSize="10sp"
-                        android:textStyle="bold"
-                        android:layout_marginStart="2dp"
-                        android:layout_marginEnd="2dp"
-                        android:text="82%" />
-                    
-                    <SeekBar
-                        android:id="@+id/seek_progress"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:minHeight="4dp"
-                        android:maxHeight="4dp"
-                        android:thumbTint="#00000000"
-                        android:paddingStart="0dp"
-                        android:paddingEnd="0dp"
-                        android:progressDrawable="@android:drawable/progress_horizontal"
-                        android:progressTint="#7FE9F9"/>
-                        
-                    <ImageView android:id="@+id/btn_next"
-                        android:layout_width="24dp" android:layout_height="24dp" android:padding="4dp"
-                        android:layout_marginStart="2dp"
-                        android:src="@android:drawable/ic_media_next" android:tint="#AAAAAA" />
+                    android:gravity="end|center_vertical"
+                    android:padding="8dp"
+                    android:visibility="gone">
+                    <ImageView android:id="@+id/btn_close_fullscreen"
+                        android:layout_width="32dp" android:layout_height="32dp"
+                        android:padding="4dp" android:src="@android:drawable/ic_menu_close_clear_cancel"
+                        android:tint="#F44336" android:background="?android:attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="Exit Fullscreen" />
                 </LinearLayout>
 
             </LinearLayout>

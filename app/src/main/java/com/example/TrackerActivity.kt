@@ -118,25 +118,28 @@ fun TrackerScreen(onBack: () -> Unit, db: AppDatabase) {
                                 val cols = booksCursor.columnNames
                                 val titleIdx = cols.indexOfFirst { it.equals("title", true) || it.equals("name", true) || it.contains("book", true) }
                                 val authorIdx = cols.indexOfFirst { it.equals("author", true) }
-                                val chaptersIdx = cols.indexOfFirst { it.contains("chap", true) || it.equals("total", true) }
+                                val totalIdx = cols.indexOfFirst { it.equals("total", true) || it.equals("total_chapters", true) || it.equals("chapters", true) }
+                                val readIdx = cols.indexOfFirst { it.equals("last_chapter", true) || it.equals("current_chapter", true) || it.equals("read", true) || it.equals("progress", true) || it.equals("chapter", true) }
                                 
                                 while (booksCursor.moveToNext()) {
                                     if (titleIdx != -1) {
                                         val title = booksCursor.getString(titleIdx) ?: continue
                                         val author = if (authorIdx != -1) booksCursor.getString(authorIdx) else "Unknown"
-                                        val totalCh = if (chaptersIdx != -1) booksCursor.getInt(chaptersIdx) else 0
+                                        val totalCh = if (totalIdx != -1) booksCursor.getInt(totalIdx) else 0
+                                        val readCh = if (readIdx != -1) booksCursor.getInt(readIdx) else 0
                                         
                                         val existing = existingTrackerBooks.find { it.title.equals(title, true) }
                                         if (existing != null) {
                                             db.trackerDao().insertBook(existing.copy(
                                                 totalChapters = if (totalCh > existing.totalChapters) totalCh else existing.totalChapters,
+                                                readChapters = if (readCh > existing.readChapters) readCh else existing.readChapters,
                                                 lastUpdatedTimestamp = System.currentTimeMillis()
                                             ))
                                             updated++
                                         } else {
                                             db.trackerDao().insertBook(TrackerBook(
                                                 title = title, author = author ?: "Unknown",
-                                                readChapters = 0, totalChapters = totalCh,
+                                                readChapters = readCh, totalChapters = totalCh,
                                                 genres = "Moon+ Backup", addedTimestamp = System.currentTimeMillis(),
                                                 lastUpdatedTimestamp = System.currentTimeMillis()
                                             ))
@@ -149,16 +152,35 @@ fun TrackerScreen(onBack: () -> Unit, db: AppDatabase) {
                             moonDb.close()
                         } catch (e: Exception) {
                             // Not a typical SQLite DB, maybe a .po file?
-                            if (file.name.endsWith(".po") || file.name.endsWith(".txt")) {
-                                val content = file.readText(Charsets.UTF_8).take(1000) // read head
-                                // very rough heuristic for .po (text stat configs)
-                                val titleMatch = Regex("(?i)title[=:]\\s*(.+)").find(content)
-                                if (titleMatch != null) {
-                                    val title = titleMatch.groupValues[1].trim()
-                                    val existing = existingTrackerBooks.find { it.title.equals(title, true) }
-                                    if (existing == null) {
+                            if (file.name.endsWith(".po") || file.name.endsWith(".txt") || file.name.endsWith(".mrstd")) {
+                                val content = file.bufferedReader(Charsets.UTF_8).use { reader ->
+                                    val buffer = CharArray(2000)
+                                    val count = reader.read(buffer)
+                                    if (count > 0) String(buffer, 0, count) else ""
+                                } // read head
+                                
+                                var title = Regex("(?i)title[=:]\\s*([^\\n\\r]+)").find(content)?.groupValues?.get(1)?.trim()
+                                if (title == null) {
+                                    title = file.name.replace(Regex("(?i)\\.(po|mrstd|txt|epub|pdf|mobi)$"), "").replace(Regex("(?i)\\.(po|mrstd|txt|epub|pdf|mobi)$"), "").trim()
+                                }
+                                
+                                val readChMatch = Regex("(?i)(?:current_chapter|last_chapter|chapter|read)[=:]\\s*(\\d+)").find(content)
+                                val totChMatch = Regex("(?i)(?:total_chapters|total)[=:]\\s*(\\d+)").find(content)
+                                val readCh = readChMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                                val totCh = totChMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                                
+                                if (title.isNotEmpty()) {
+                                    val existing = existingTrackerBooks.find { it.title.equals(title, true) || title.contains(it.title, true) }
+                                    if (existing != null) {
+                                        db.trackerDao().insertBook(existing.copy(
+                                            totalChapters = if (totCh > existing.totalChapters) totCh else existing.totalChapters,
+                                            readChapters = if (readCh > existing.readChapters) readCh else existing.readChapters,
+                                            lastUpdatedTimestamp = System.currentTimeMillis()
+                                        ))
+                                        updated++
+                                    } else {
                                         db.trackerDao().insertBook(TrackerBook(
-                                            title = title, author = "Unknown", readChapters = 0, totalChapters = 0,
+                                            title = title, author = "Unknown", readChapters = readCh, totalChapters = totCh,
                                             genres = "Moon+ Backup", addedTimestamp = System.currentTimeMillis(),
                                             lastUpdatedTimestamp = System.currentTimeMillis()
                                         ))
@@ -319,8 +341,8 @@ fun TrackerBookItem(book: TrackerBook, onClick: () -> Unit, onDelete: () -> Unit
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                Text(book.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(book.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
                     Icon(Icons.Default.Delete, contentDescription = "Delete")
                 }

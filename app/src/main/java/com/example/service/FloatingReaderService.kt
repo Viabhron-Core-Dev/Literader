@@ -161,6 +161,8 @@ class FloatingReaderService : Service() {
 
         windowManager.addView(floatingView, layoutParams)
 
+        updateKeepScreenOn()
+
         initViews()
         setupListeners()
         setFolded(true)
@@ -356,6 +358,50 @@ class FloatingReaderService : Service() {
     private var rootExplorerDir: java.io.File? = null
     private var explorerSortByName: Boolean = true
     private var explorerSortAscending: Boolean = true
+
+    private var isFullScreen = false
+    private var preFullScreenX = 0
+    private var preFullScreenY = 0
+    private var preFullScreenWidth = 0
+    private var preFullScreenHeight = 0
+
+    private fun toggleFullScreen() {
+        val windowControls = floatingView.findViewById<View>(R.id.bottom_window_controls)
+        val closeFullscreenContainer = floatingView.findViewById<View>(R.id.fullscreen_close_container)
+        if (!isFullScreen) {
+            preFullScreenX = layoutParams.x
+            preFullScreenY = layoutParams.y
+            preFullScreenWidth = layoutParams.width
+            preFullScreenHeight = layoutParams.height
+            layoutParams.x = 0
+            layoutParams.y = 0
+            layoutParams.width = WindowManager.LayoutParams.MATCH_PARENT
+            layoutParams.height = WindowManager.LayoutParams.MATCH_PARENT
+            isFullScreen = true
+            windowControls?.visibility = View.GONE
+            closeFullscreenContainer?.visibility = View.VISIBLE
+        } else {
+            layoutParams.x = preFullScreenX
+            layoutParams.y = preFullScreenY
+            layoutParams.width = preFullScreenWidth
+            layoutParams.height = preFullScreenHeight
+            isFullScreen = false
+            windowControls?.visibility = View.VISIBLE
+            closeFullscreenContainer?.visibility = View.GONE
+        }
+        windowManager.updateViewLayout(floatingView, layoutParams)
+    }
+
+    private fun updateKeepScreenOn() {
+        if (prefs.getBoolean("keep_screen_on", false)) {
+            layoutParams.flags = layoutParams.flags or WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+        } else {
+            layoutParams.flags = layoutParams.flags and WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON.inv()
+        }
+        if (this::windowManager.isInitialized) {
+            windowManager.updateViewLayout(floatingView, layoutParams)
+        }
+    }
 
     private fun loadSettingsFromPrefs() {
         currentLibraryTab = prefs.getString("last_library_tab", "Recent") ?: "Recent"
@@ -863,6 +909,14 @@ class FloatingReaderService : Service() {
             }
         }
         
+        floatingView.findViewById<Switch>(R.id.switch_keep_screen_on)?.apply {
+            isChecked = prefs.getBoolean("keep_screen_on", false)
+            setOnCheckedChangeListener { _, isChecked ->
+                prefs.edit().putBoolean("keep_screen_on", isChecked).apply()
+                updateKeepScreenOn()
+            }
+        }
+        
         floatingView.findViewById<Switch>(R.id.switch_theme)?.setOnCheckedChangeListener { _, isChecked ->
             // Basic theme mock logic
             val bgColor = if (isChecked) android.graphics.Color.WHITE else android.graphics.Color.parseColor("#222222")
@@ -882,14 +936,26 @@ class FloatingReaderService : Service() {
             override fun onStopTrackingTouch(p0: SeekBar?) {}
         })
 
+        var lastTopBarTapTime = 0L
         floatingView.findViewById<View>(R.id.top_drag_bar).setOnClickListener {
-            if (overlayLibrary.visibility == View.VISIBLE || overlayChapters.visibility == View.VISIBLE || overlaySettings.visibility == View.VISIBLE) {
-                hideOverlays()
-                currentBook?.let { 
-                    val displayTitle = it.title.replace(Regex("(?i)\\.epub$"), "")
-                    tvWindowTitle.text = "$displayTitle (Ch ${currentChapterIndex + 1}/${it.totalChapters})"
+            val now = System.currentTimeMillis()
+            if (now - lastTopBarTapTime < 300) {
+                toggleFullScreen()
+                lastTopBarTapTime = 0L
+            } else {
+                lastTopBarTapTime = now
+                if (overlayLibrary.visibility == View.VISIBLE || overlayChapters.visibility == View.VISIBLE || overlaySettings.visibility == View.VISIBLE) {
+                    hideOverlays()
+                    currentBook?.let { 
+                        val displayTitle = it.title.replace(Regex("(?i)\\.epub$"), "")
+                        tvWindowTitle.text = "$displayTitle (Ch ${currentChapterIndex + 1}/${it.totalChapters})"
+                    }
                 }
             }
+        }
+        
+        floatingView.findViewById<View>(R.id.btn_close_fullscreen)?.setOnClickListener {
+            toggleFullScreen()
         }
         
         btnTts.setOnClickListener {

@@ -52,40 +52,22 @@ object EpubParser {
             val bookDir = File(context.filesDir, "book_$bookId")
             if (!bookDir.exists()) bookDir.mkdirs()
 
-            val fullText = txtFile.readText()
-            // Split into chapters roughly every 15000 characters to prevent TextView lag
-            val chunkSize = 15000
             var chapterCount = 0
-            var currentIndex = 0
+            val sb = java.lang.StringBuilder()
             
-            while (currentIndex < fullText.length) {
-                var endIndex = currentIndex + chunkSize
-                if (endIndex >= fullText.length) {
-                    endIndex = fullText.length
-                } else {
-                    // Try to find a paragraph break (double newline) to split at
-                    var breakIdx = fullText.indexOf("\n\n", endIndex - 2000)
-                    if (breakIdx == -1 || breakIdx > endIndex + 2000) {
-                        breakIdx = fullText.indexOf("\n", endIndex)
-                    }
-                    if (breakIdx != -1 && breakIdx < fullText.length) {
-                        endIndex = breakIdx + 1
-                    }
-                }
-                
-                val chapterText = fullText.substring(currentIndex, endIndex).trim()
-                if (chapterText.isNotEmpty()) {
+            txtFile.forEachLine { line ->
+                sb.append(line).append("\n")
+                if (sb.length > 15000) {
                     val chapterFile = File(bookDir, "chapter_$chapterCount.txt")
-                    chapterFile.writeText(chapterText)
+                    chapterFile.writeText(sb.toString().trim())
                     chapterCount++
+                    sb.clear()
                 }
-                currentIndex = endIndex
             }
-            // Ensure at least 1 chapter if empty
-            if (chapterCount == 0) {
-                val chapterFile = File(bookDir, "chapter_0.txt")
-                chapterFile.writeText("Empty book.")
-                chapterCount = 1
+            if (sb.isNotEmpty() || chapterCount == 0) {
+                val chapterFile = File(bookDir, "chapter_$chapterCount.txt")
+                chapterFile.writeText(if (sb.isEmpty()) "Empty book." else sb.toString().trim())
+                chapterCount++
             }
             return@withContext chapterCount
         } catch (e: Exception) {
