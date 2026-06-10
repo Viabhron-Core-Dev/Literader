@@ -32,6 +32,34 @@ object LogKeeper {
         }
     }
 
+    fun writeLog(tag: String, message: String) {
+        if (!isEnabled) return
+        try {
+            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            var logFile: File? = null
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            if (downloadsDir != null && downloadsDir.exists()) {
+                logFile = File(downloadsDir, "LiteReader_Log_${tag}_$timestamp.txt")
+            } else {
+                val fallbackDir = appContext?.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+                if (fallbackDir != null && fallbackDir.exists()) {
+                    logFile = File(fallbackDir, "LiteReader_Log_${tag}_$timestamp.txt")
+                }
+            }
+            logFile?.let {
+                val writer = FileWriter(it)
+                writer.appendLine("--- LiteReader Diagnostic Log ---")
+                writer.appendLine("Timestamp: $timestamp")
+                writer.appendLine("Tag: $tag")
+                writer.appendLine("Message:\n$message")
+                writer.flush()
+                writer.close()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     private fun saveCrashLog(thread: Thread, throwable: Throwable) {
         try {
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())

@@ -156,25 +156,38 @@ fun TrackerScreen(onBack: () -> Unit, db: AppDatabase) {
                             }
                             moonDb.close()
                         } catch (e: Exception) {
-                            // Not a typical SQLite DB, maybe a .po file?
-                            if (file.name.endsWith(".po") || file.name.endsWith(".txt") || file.name.endsWith(".mrstd")) {
-                                val content = file.bufferedReader(Charsets.UTF_8).use { reader ->
-                                    val buffer = CharArray(2000)
-                                    val count = reader.read(buffer)
-                                    if (count > 0) String(buffer, 0, count) else ""
-                                } // read head
+                            // Not a typical SQLite DB, maybe a .po, .tag, or .list file?
+                            if (file.name.endsWith(".po") || file.name.endsWith(".tag") || file.name.endsWith(".list") || file.name.endsWith(".txt") || file.name.endsWith(".mrstd") || !file.name.contains(".")) {
+                                val content = file.readBytes().toString(Charsets.ISO_8859_1) // Use ISO to preserve binary mixed text
+                                
+                                // Diagnostic log to capture keys (max 1000 chars)
+                                val logContent = content.take(1000).replace(Regex("[^\\x20-\\x7E\n\r]"), ".")
+                                android.util.Log.d("TrackerActivity", "Moon+ Backup content prefix of ${file.name}: \n$logContent")
+                                com.example.LogKeeper.writeLog("MoonPlusImport", "File: ${file.name}\n$logContent")
                                 
                                 var title = Regex("(?i)title[=:]\\s*([^\\n\\r]+)").find(content)?.groupValues?.get(1)?.trim()
                                 if (title == null) {
-                                    title = file.name.replace(Regex("(?i)\\.(po|mrstd|txt|epub|pdf|mobi)$"), "").replace(Regex("(?i)\\.(po|mrstd|txt|epub|pdf|mobi)$"), "").trim()
+                                    title = file.name.replace(Regex("(?i)\\.(po|tag|stat|mrstd|txt|epub|pdf|mobi)$"), "").trim()
                                 }
                                 
-                                val readChMatch = Regex("(?i)(?:current_chapter|last_chapter|chapter|read)[=:]\\s*(\\d+)").find(content)
-                                val totChMatch = Regex("(?i)(?:total_chapters|total)[=:]\\s*(\\d+)").find(content)
-                                val readCh = readChMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
-                                val totCh = totChMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                                // Look for current chapter / progress patterns
+                                val readChMatch = Regex("(?i)(?:current_chapter|last_chapter|chapter|read|c)[=:\\s]*(\\d+)").find(content)
+                                val totChMatch = Regex("(?i)(?:total_chapters|total)[=:\\s]*(\\d+)").find(content)
+                                val progressMatch = Regex("(?i)(?:p|progress|percent)[=:\\s]*([0-9.]+)\\s*%?").find(content)
                                 
-                                if (title.isNotEmpty()) {
+                                var readCh = readChMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                                val totCh = totChMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                                val progress = progressMatch?.groupValues?.get(1)?.toFloatOrNull() ?: 0f
+
+                                if (readCh == 0 && progress > 0f) {
+                                    if (totCh > 0) {
+                                        readCh = ((progress / 100f) * totCh).toInt()
+                                    } else {
+                                        readCh = progress.toInt() // fallback
+                                    }
+                                }
+                                
+                                if (title.isNotEmpty() && title.length > 1) { // avoid processing random tiny files as books
                                     val existing = existingTrackerBooks.find { it.title.equals(title, true) || title.contains(it.title, true) }
                                     if (existing != null) {
                                         db.trackerDao().insertBook(existing.copy(
@@ -183,7 +196,7 @@ fun TrackerScreen(onBack: () -> Unit, db: AppDatabase) {
                                             lastUpdatedTimestamp = System.currentTimeMillis()
                                         ))
                                         updated++
-                                    } else {
+                                    } else if (readCh > 0 || totCh > 0 || progress > 0f) {
                                         db.trackerDao().insertBook(TrackerBook(
                                             title = title, author = "Unknown", readChapters = readCh, totalChapters = totCh,
                                             genres = "Moon+ Backup", addedTimestamp = System.currentTimeMillis(),
