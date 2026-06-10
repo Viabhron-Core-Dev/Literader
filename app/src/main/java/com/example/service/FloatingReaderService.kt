@@ -75,10 +75,15 @@ class FloatingReaderService : Service() {
         }
     }
 
+    companion object {
+        var instance: FloatingReaderService? = null
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
 
         // Start Foreground Service
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -172,6 +177,7 @@ class FloatingReaderService : Service() {
     private lateinit var overlayChapters: View
     private lateinit var overlaySettings: View
     private lateinit var overlayBookmarks: View
+    private lateinit var bottomWindowControls: View
     private lateinit var listLibrary: androidx.recyclerview.widget.RecyclerView
     private lateinit var listChapters: androidx.recyclerview.widget.RecyclerView
     private lateinit var listBookmarks: androidx.recyclerview.widget.RecyclerView
@@ -231,6 +237,7 @@ class FloatingReaderService : Service() {
                                 } else {
                                     val isVisible = toolbarContainer.visibility == View.VISIBLE
                                     toolbarContainer.visibility = if (isVisible) View.GONE else View.VISIBLE
+                                    bottomWindowControls.visibility = if (isVisible && !isFullScreen) View.VISIBLE else View.GONE
                                 }
                             }
                         }
@@ -259,6 +266,7 @@ class FloatingReaderService : Service() {
         }
         windowContainer = floatingView.findViewById(R.id.window_container)
         btnTts = floatingView.findViewById(R.id.btn_tts)
+        bottomWindowControls = floatingView.findViewById(R.id.bottom_window_controls)
 
         overlayLibrary = floatingView.findViewById(R.id.overlay_library)
         overlayChapters = floatingView.findViewById(R.id.overlay_chapters)
@@ -871,9 +879,7 @@ class FloatingReaderService : Service() {
         }
         
         val switchScoped = floatingView.findViewById<Switch>(R.id.switch_scoped_dir)
-        val btnPickDir = floatingView.findViewById<Button>(R.id.btn_grant_storage)
         switchScoped?.isChecked = prefs.getBoolean("use_scoped_dir", false)
-        btnPickDir?.visibility = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && !android.os.Environment.isExternalStorageManager()) View.VISIBLE else View.GONE
         
         switchScoped?.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && !android.os.Environment.isExternalStorageManager()) {
@@ -892,20 +898,6 @@ class FloatingReaderService : Service() {
             // reload library text if currently in library
             if (overlayLibrary.visibility == View.VISIBLE) {
                 loadLibraryBooks()
-            }
-        }
-        
-        floatingView.findViewById<Button>(R.id.btn_grant_storage)?.setOnClickListener {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && !android.os.Environment.isExternalStorageManager()) {
-                try {
-                    val intent = Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:$packageName")).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    val intent = Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
-                    startActivity(intent)
-                }
-            } else {
-                showToast("Permission already granted")
             }
         }
         
@@ -1687,7 +1679,7 @@ class FloatingReaderService : Service() {
         override fun getItemCount() = totalChapters
     }
 
-    private fun setFolded(folded: Boolean) {
+    fun setFolded(folded: Boolean) {
         isFolded = folded
         if (folded) {
             bubbleIcon.visibility = View.VISIBLE
@@ -1737,6 +1729,7 @@ class FloatingReaderService : Service() {
     }
 
     override fun onDestroy() {
+        instance = null
         saveCurrentPosition()
         mediaSession?.isActive = false
         mediaSession?.release()

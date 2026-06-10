@@ -36,6 +36,11 @@ class TrackerActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        com.example.service.FloatingReaderService.instance?.setFolded(false)
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
