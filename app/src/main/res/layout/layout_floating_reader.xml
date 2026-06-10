@@ -50,23 +50,6 @@
                 android:maxLines="2"
                 android:ellipsize="end"
                 android:text="VianReader" />
-                
-            <ImageButton
-                android:id="@+id/btn_library_tracker"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:background="@android:color/transparent"
-                android:src="@drawable/ic_fab_tracker_game"
-                android:scaleType="fitCenter"
-                android:layout_marginEnd="12dp" />
-                
-            <ImageButton
-                android:id="@+id/btn_library_settings"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:background="@android:color/transparent"
-                android:src="@android:drawable/ic_menu_preferences"
-                android:scaleType="fitCenter" />
         </LinearLayout>
 
         <FrameLayout
@@ -162,6 +145,40 @@
                 android:orientation="vertical"
                 android:background="#222222"
                 android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="38dp"
+                    android:orientation="horizontal"
+                    android:background="#151515"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="16dp">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Library"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="#FFFFFF" />
+                        
+                    <ImageButton
+                        android:id="@+id/btn_library_tracker"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:background="@android:color/transparent"
+                        android:src="@drawable/ic_fab_tracker_game"
+                        android:scaleType="fitCenter"
+                        android:layout_marginEnd="16dp" />
+                        
+                    <ImageButton
+                        android:id="@+id/btn_library_settings"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:background="@android:color/transparent"
+                        android:src="@android:drawable/ic_menu_preferences"
+                        android:scaleType="fitCenter" />
+                </LinearLayout>
 
                 <LinearLayout
                     android:layout_width="match_parent"
