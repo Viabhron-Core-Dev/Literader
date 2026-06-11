@@ -79,7 +79,7 @@ fun TrackerScreen(onBack: () -> Unit, db: AppDatabase) {
                         android.widget.Toast.makeText(context, "Scanning Moon+ backup (.mrstd)...", android.widget.Toast.LENGTH_SHORT).show()
                     }
                     var updated = 0
-                    val existingTrackerBooks = db.trackerDao().getAllBooks()
+                    val existingTrackerBooks = db.trackerDao().getAllBooks().toMutableList()
                     
                     val tempFile = java.io.File(context.cacheDir, "moon_import_tmp")
                     context.contentResolver.openInputStream(uri)?.use { input ->
@@ -124,13 +124,14 @@ fun TrackerScreen(onBack: () -> Unit, db: AppDatabase) {
                                 try {
                                     val booksCursor = moonDb.rawQuery("SELECT * FROM $tableName", null)
                                     val cols = booksCursor.columnNames
+                                    com.example.LogKeeper.writeLog("MoonPlusImport", "DB Table: $tableName. Columns: ${cols.joinToString(",")}")
                                     
                                     val titleIdx = cols.indexOfFirst { it.equals("title", true) || it.equals("name", true) || it.contains("book", true) }
                                     val authorIdx = cols.indexOfFirst { it.equals("author", true) }
                                     val totalIdx = cols.indexOfFirst { it.equals("total", true) || it.equals("total_chapters", true) || it.equals("chapters", true) }
                                     val readIdx = cols.indexOfFirst { it.equals("last_chapter", true) || it.equals("current_chapter", true) || it.equals("read", true) || it.equals("progress", true) || it.equals("chapter", true) || it.equals("lastChapter", true) || it.equals("p", true) }
                                     
-                                    if (titleIdx != -1 && (readIdx != -1 || totalIdx != -1)) {
+                                    if (titleIdx != -1) {
                                         foundData = true
                                         com.example.LogKeeper.writeLog("MoonPlusImport", "Found relevant table $tableName. Columns: ${cols.joinToString(",")}")
                                         while (booksCursor.moveToNext()) {
@@ -157,21 +158,28 @@ fun TrackerScreen(onBack: () -> Unit, db: AppDatabase) {
                                             
                                             com.example.LogKeeper.writeLog("MoonPlusImport", "Found book: '$title' - readCh=$readCh, totalCh=$totalCh, progressRaw=$progress")
                                             
-                                            val existing = existingTrackerBooks.find { it.title.equals(title, true) }
-                                            if (existing != null) {
-                                                db.trackerDao().insertBook(existing.copy(
-                                                    totalChapters = if (totalCh > existing.totalChapters) totalCh else existing.totalChapters,
-                                                    readChapters = if (readCh > existing.readChapters) readCh else existing.readChapters,
+                                            val existingIdx = existingTrackerBooks.indexOfFirst { it.title.equals(title, true) }
+                                            if (existingIdx != -1) {
+                                                val existing = existingTrackerBooks[existingIdx]
+                                                val newTotal = if (totalCh > existing.totalChapters) totalCh else existing.totalChapters
+                                                val newRead = if (readCh > existing.readChapters) readCh else existing.readChapters
+                                                val updatedBook = existing.copy(
+                                                    totalChapters = newTotal,
+                                                    readChapters = newRead,
                                                     lastUpdatedTimestamp = System.currentTimeMillis()
-                                                ))
+                                                )
+                                                db.trackerDao().insertBook(updatedBook)
+                                                existingTrackerBooks[existingIdx] = updatedBook
                                                 updated++
                                             } else {
-                                                db.trackerDao().insertBook(TrackerBook(
+                                                val newBook = TrackerBook(
                                                     title = title, author = author ?: "Unknown",
                                                     readChapters = readCh, totalChapters = totalCh,
                                                     genres = "Moon+ Backup", addedTimestamp = System.currentTimeMillis(),
                                                     lastUpdatedTimestamp = System.currentTimeMillis()
-                                                ))
+                                                )
+                                                db.trackerDao().insertBook(newBook)
+                                                existingTrackerBooks.add(newBook)
                                                 updated++
                                             }
                                         }

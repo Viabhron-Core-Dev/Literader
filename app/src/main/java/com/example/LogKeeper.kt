@@ -35,23 +35,23 @@ object LogKeeper {
     fun writeLog(tag: String, message: String) {
         if (!isEnabled) return
         try {
-            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-            var logFile: File? = null
-            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val timestamp = java.text.SimpleDateFormat("yyyyMMdd_HH", java.util.Locale.US).format(java.util.Date())
+            var logFile: java.io.File? = null
+            val downloadsDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
             if (downloadsDir != null && downloadsDir.exists()) {
-                logFile = File(downloadsDir, "LiteReader_Log_${tag}_$timestamp.txt")
+                logFile = java.io.File(downloadsDir, "LiteReader_Log_${tag}_$timestamp.txt")
             } else {
-                val fallbackDir = appContext?.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+                val fallbackDir = appContext?.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS)
                 if (fallbackDir != null && fallbackDir.exists()) {
-                    logFile = File(fallbackDir, "LiteReader_Log_${tag}_$timestamp.txt")
+                    logFile = java.io.File(fallbackDir, "LiteReader_Log_${tag}_$timestamp.txt")
                 }
             }
             logFile?.let {
-                val writer = FileWriter(it)
-                writer.appendLine("--- LiteReader Diagnostic Log ---")
-                writer.appendLine("Timestamp: $timestamp")
-                writer.appendLine("Tag: $tag")
-                writer.appendLine("Message:\n$message")
+                val writer = java.io.FileWriter(it, true) // APPEND MODE
+                val timeExact = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", java.util.Locale.US).format(java.util.Date())
+                writer.appendLine("--- [$timeExact] [$tag] ---")
+                writer.appendLine(message)
+                writer.appendLine("")
                 writer.flush()
                 writer.close()
             }
