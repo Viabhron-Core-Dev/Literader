@@ -111,52 +111,79 @@ fun TrackerScreen(onBack: () -> Unit, db: AppDatabase) {
                             // Attempt SQLite read (Moon+ usually has a books.db or moonreader.db inside)
                             val moonDb = android.database.sqlite.SQLiteDatabase.openDatabase(file.absolutePath, null, android.database.sqlite.SQLiteDatabase.OPEN_READONLY)
                             // Look for 'books' table
-                            val cursor = moonDb.rawQuery("SELECT * FROM sqlite_master WHERE type='table' AND name LIKE '%book%'", null)
-                            var tableName: String? = null
-                            if (cursor.moveToFirst()) {
-                                tableName = cursor.getString(cursor.getColumnIndexOrThrow("name"))
+                            val cursor = moonDb.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'", null)
+                            val allTables = mutableListOf<String>()
+                            while (cursor.moveToNext()) {
+                                allTables.add(cursor.getString(0))
                             }
                             cursor.close()
                             
-                            if (tableName != null) {
-                                val booksCursor = moonDb.rawQuery("SELECT * FROM $tableName", null)
-                                val cols = booksCursor.columnNames
-                                com.example.LogKeeper.writeLog("MoonPlusImport", "Found SQLite DB: ${file.name}, table $tableName. Columns: ${cols.joinToString(",")}")
-                                
-                                val titleIdx = cols.indexOfFirst { it.equals("title", true) || it.equals("name", true) || it.contains("book", true) }
-                                val authorIdx = cols.indexOfFirst { it.equals("author", true) }
-                                val totalIdx = cols.indexOfFirst { it.equals("total", true) || it.equals("total_chapters", true) || it.equals("chapters", true) }
-                                val readIdx = cols.indexOfFirst { it.equals("last_chapter", true) || it.equals("current_chapter", true) || it.equals("read", true) || it.equals("progress", true) || it.equals("chapter", true) }
-                                
-                                while (booksCursor.moveToNext()) {
-                                    if (titleIdx != -1) {
-                                        val title = booksCursor.getString(titleIdx) ?: continue
-                                        val author = if (authorIdx != -1) booksCursor.getString(authorIdx) else "Unknown"
-                                        val totalCh = if (totalIdx != -1) booksCursor.getInt(totalIdx) else 0
-                                        val readCh = if (readIdx != -1) booksCursor.getInt(readIdx) else 0
-                                        
-                                        com.example.LogKeeper.writeLog("MoonPlusImport", "Found book: '$title' - readCh=$readCh, totalCh=$totalCh")
-                                        
-                                        val existing = existingTrackerBooks.find { it.title.equals(title, true) }
-                                        if (existing != null) {
-                                            db.trackerDao().insertBook(existing.copy(
-                                                totalChapters = if (totalCh > existing.totalChapters) totalCh else existing.totalChapters,
-                                                readChapters = if (readCh > existing.readChapters) readCh else existing.readChapters,
-                                                lastUpdatedTimestamp = System.currentTimeMillis()
-                                            ))
-                                            updated++
-                                        } else {
-                                            db.trackerDao().insertBook(TrackerBook(
-                                                title = title, author = author ?: "Unknown",
-                                                readChapters = readCh, totalChapters = totalCh,
-                                                genres = "Moon+ Backup", addedTimestamp = System.currentTimeMillis(),
-                                                lastUpdatedTimestamp = System.currentTimeMillis()
-                                            ))
-                                            updated++
+                            var foundData = false
+                            
+                            for (tableName in allTables) {
+                                try {
+                                    val booksCursor = moonDb.rawQuery("SELECT * FROM $tableName", null)
+                                    val cols = booksCursor.columnNames
+                                    
+                                    val titleIdx = cols.indexOfFirst { it.equals("title", true) || it.equals("name", true) || it.contains("book", true) }
+                                    val authorIdx = cols.indexOfFirst { it.equals("author", true) }
+                                    val totalIdx = cols.indexOfFirst { it.equals("total", true) || it.equals("total_chapters", true) || it.equals("chapters", true) }
+                                    val readIdx = cols.indexOfFirst { it.equals("last_chapter", true) || it.equals("current_chapter", true) || it.equals("read", true) || it.equals("progress", true) || it.equals("chapter", true) || it.equals("lastChapter", true) || it.equals("p", true) }
+                                    
+                                    if (titleIdx != -1 && (readIdx != -1 || totalIdx != -1)) {
+                                        foundData = true
+                                        com.example.LogKeeper.writeLog("MoonPlusImport", "Found relevant table $tableName. Columns: ${cols.joinToString(",")}")
+                                        while (booksCursor.moveToNext()) {
+                                            val title = booksCursor.getString(titleIdx) ?: continue
+                                            if (title.isBlank()) continue
+                                            val author = if (authorIdx != -1) booksCursor.getString(authorIdx) else "Unknown"
+                                            val totalCh = if (totalIdx != -1) booksCursor.getInt(totalIdx) else 0
+                                            
+                                            // Handle case where progress is float/real
+                                            var readCh = 0
+                                            var progress = 0f
+                                            if (readIdx != -1) {
+                                                try {
+                                                    progress = booksCursor.getFloat(readIdx)
+                                                    if (progress > 0 && progress <= 100 && totalCh > 0) { // e.g. 45.2%
+                                                        readCh = ((progress / 100f) * totalCh).toInt()
+                                                    } else {
+                                                        readCh = booksCursor.getInt(readIdx)
+                                                    }
+                                                } catch (e: Exception) {
+                                                    readCh = booksCursor.getInt(readIdx)
+                                                }
+                                            }
+                                            
+                                            com.example.LogKeeper.writeLog("MoonPlusImport", "Found book: '$title' - readCh=$readCh, totalCh=$totalCh, progressRaw=$progress")
+                                            
+                                            val existing = existingTrackerBooks.find { it.title.equals(title, true) }
+                                            if (existing != null) {
+                                                db.trackerDao().insertBook(existing.copy(
+                                                    totalChapters = if (totalCh > existing.totalChapters) totalCh else existing.totalChapters,
+                                                    readChapters = if (readCh > existing.readChapters) readCh else existing.readChapters,
+                                                    lastUpdatedTimestamp = System.currentTimeMillis()
+                                                ))
+                                                updated++
+                                            } else {
+                                                db.trackerDao().insertBook(TrackerBook(
+                                                    title = title, author = author ?: "Unknown",
+                                                    readChapters = readCh, totalChapters = totalCh,
+                                                    genres = "Moon+ Backup", addedTimestamp = System.currentTimeMillis(),
+                                                    lastUpdatedTimestamp = System.currentTimeMillis()
+                                                ))
+                                                updated++
+                                            }
                                         }
                                     }
+                                    booksCursor.close()
+                                } catch (e: Exception) {
+                                    // ignore table parsing errors
                                 }
-                                booksCursor.close()
+                            }
+                            
+                            if (!foundData) {
+                                com.example.LogKeeper.writeLog("MoonPlusImport", "SQLite DB opened but no relevant columns. Tables: ${allTables.joinToString(", ")}")
                             }
                             moonDb.close()
                         } catch (e: Exception) {
