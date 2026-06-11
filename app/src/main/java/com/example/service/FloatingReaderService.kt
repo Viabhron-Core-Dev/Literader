@@ -177,6 +177,9 @@ class FloatingReaderService : Service() {
     private lateinit var overlayChapters: View
     private lateinit var overlaySettings: View
     private lateinit var overlayBookmarks: View
+    private lateinit var overlaySearch: View
+    private lateinit var overlaySearchResults: View
+    private lateinit var overlayNotes: View
     private lateinit var bottomWindowControls: View
     private lateinit var listLibrary: androidx.recyclerview.widget.RecyclerView
     private lateinit var listChapters: androidx.recyclerview.widget.RecyclerView
@@ -272,6 +275,23 @@ class FloatingReaderService : Service() {
         overlayChapters = floatingView.findViewById(R.id.overlay_chapters)
         overlaySettings = floatingView.findViewById(R.id.overlay_settings)
         overlayBookmarks = floatingView.findViewById(R.id.overlay_bookmarks)
+        overlaySearch = floatingView.findViewById(R.id.overlay_search) ?: overlaySettings // fallback if not exist
+        overlaySearchResults = floatingView.findViewById(R.id.overlay_search_results) ?: overlaySettings
+        overlayNotes = floatingView.findViewById(R.id.overlay_notes)
+
+        val composeNotesView = floatingView.findViewById<androidx.compose.ui.platform.ComposeView>(R.id.compose_notes_view)
+        composeNotesView?.setContent {
+            androidx.compose.material3.MaterialTheme(colorScheme = androidx.compose.material3.darkColorScheme()) {
+                com.example.NotesScreen(
+                    db = com.example.data.AppDatabase.getDatabase(this),
+                    onClose = {
+                        overlayNotes.visibility = View.GONE
+                        toolbarContainer.visibility = View.VISIBLE
+                    }
+                )
+            }
+        }
+
         listLibrary = floatingView.findViewById(R.id.list_library)
         listChapters = floatingView.findViewById(R.id.list_chapters)
         listBookmarks = floatingView.findViewById(R.id.list_bookmarks)
@@ -696,6 +716,11 @@ class FloatingReaderService : Service() {
             }
             try { startActivity(intent) } catch (e: Exception) { AppLogger.d("Service", "Failed to start tracker: ${e.message}") }
             setFolded(true)
+        }
+        
+        floatingView.findViewById<View>(R.id.btn_library_notes)?.setOnClickListener {
+            overlayNotes.visibility = View.VISIBLE
+            toolbarContainer.visibility = View.GONE
         }
         
         floatingView.findViewById<View>(R.id.btn_settings_back)?.setOnClickListener {

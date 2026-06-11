@@ -172,6 +172,16 @@
                         android:layout_marginEnd="16dp" />
                         
                     <ImageButton
+                        android:id="@+id/btn_library_notes"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:background="@android:color/transparent"
+                        android:src="@android:drawable/ic_menu_edit"
+                        android:tint="#FFFFFF"
+                        android:scaleType="fitCenter"
+                        android:layout_marginEnd="16dp" />
+                        
+                    <ImageButton
                         android:id="@+id/btn_library_settings"
                         android:layout_width="28dp"
                         android:layout_height="28dp"
@@ -505,6 +515,18 @@
                             android:padding="8dp" />
                     </ScrollView>
                 </LinearLayout>
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/overlay_notes"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#151515"
+                android:visibility="gone">
+                <androidx.compose.ui.platform.ComposeView
+                    android:id="@+id/compose_notes_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"/>
             </FrameLayout>
 
             <!-- Toggleable Toolbar (Moonreader style) -->
