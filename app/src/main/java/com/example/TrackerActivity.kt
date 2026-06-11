@@ -121,6 +121,8 @@ fun TrackerScreen(onBack: () -> Unit, db: AppDatabase) {
                             if (tableName != null) {
                                 val booksCursor = moonDb.rawQuery("SELECT * FROM $tableName", null)
                                 val cols = booksCursor.columnNames
+                                com.example.LogKeeper.writeLog("MoonPlusImport", "Found SQLite DB: ${file.name}, table $tableName. Columns: ${cols.joinToString(",")}")
+                                
                                 val titleIdx = cols.indexOfFirst { it.equals("title", true) || it.equals("name", true) || it.contains("book", true) }
                                 val authorIdx = cols.indexOfFirst { it.equals("author", true) }
                                 val totalIdx = cols.indexOfFirst { it.equals("total", true) || it.equals("total_chapters", true) || it.equals("chapters", true) }
@@ -132,6 +134,8 @@ fun TrackerScreen(onBack: () -> Unit, db: AppDatabase) {
                                         val author = if (authorIdx != -1) booksCursor.getString(authorIdx) else "Unknown"
                                         val totalCh = if (totalIdx != -1) booksCursor.getInt(totalIdx) else 0
                                         val readCh = if (readIdx != -1) booksCursor.getInt(readIdx) else 0
+                                        
+                                        com.example.LogKeeper.writeLog("MoonPlusImport", "Found book: '$title' - readCh=$readCh, totalCh=$totalCh")
                                         
                                         val existing = existingTrackerBooks.find { it.title.equals(title, true) }
                                         if (existing != null) {
