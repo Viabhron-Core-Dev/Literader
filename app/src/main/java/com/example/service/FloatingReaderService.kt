@@ -279,18 +279,8 @@ class FloatingReaderService : Service() {
         overlaySearchResults = floatingView.findViewById(R.id.overlay_search_results) ?: overlaySettings
         overlayNotes = floatingView.findViewById(R.id.overlay_notes)
 
-        val composeNotesView = floatingView.findViewById<androidx.compose.ui.platform.ComposeView>(R.id.compose_notes_view)
-        composeNotesView?.setContent {
-            androidx.compose.material3.MaterialTheme(colorScheme = androidx.compose.material3.darkColorScheme()) {
-                com.example.NotesScreen(
-                    db = com.example.data.AppDatabase.getDatabase(this),
-                    onClose = {
-                        overlayNotes.visibility = View.GONE
-                        toolbarContainer.visibility = View.VISIBLE
-                    }
-                )
-            }
-        }
+        // Initialize XML Notes View
+        initNotesOverlay()
 
         listLibrary = floatingView.findViewById(R.id.list_library)
         listChapters = floatingView.findViewById(R.id.list_chapters)
@@ -377,6 +367,7 @@ class FloatingReaderService : Service() {
         overlayChapters.visibility = View.GONE
         overlaySettings.visibility = View.GONE
         overlayBookmarks.visibility = View.GONE
+        overlayNotes.visibility = View.GONE
         floatingView.findViewById<View>(R.id.overlay_search).visibility = View.GONE
         scrollView.visibility = View.VISIBLE
     }
@@ -621,6 +612,13 @@ class FloatingReaderService : Service() {
         toolbarContainer.visibility = View.GONE
     }
 
+    private fun openNotesView() {
+        hideOverlays()
+        overlayNotes.visibility = View.VISIBLE
+        toolbarContainer.visibility = View.GONE
+        loadNotes()
+    }
+
     private fun openBookmarksView() {
         overlayBookmarks.visibility = View.VISIBLE
         toolbarContainer.visibility = View.GONE
@@ -719,8 +717,7 @@ class FloatingReaderService : Service() {
         }
         
         floatingView.findViewById<View>(R.id.btn_library_notes)?.setOnClickListener {
-            overlayNotes.visibility = View.VISIBLE
-            toolbarContainer.visibility = View.GONE
+            openNotesView()
         }
         
         floatingView.findViewById<View>(R.id.btn_settings_back)?.setOnClickListener {
@@ -1620,6 +1617,166 @@ class FloatingReaderService : Service() {
         }
 
         override fun getItemCount() = books.size
+    }
+
+    // --- Quick Notes Implementation ---
+    private lateinit var listNotes: androidx.recyclerview.widget.RecyclerView
+    private lateinit var btnNotesBack: View
+    private lateinit var btnNotesAdd: View
+    private lateinit var btnNotesDelete: View
+    private lateinit var tvNotesTitle: android.widget.TextView
+    private var notesAdapter: NotesAdapter? = null
+    
+    private val selectedNotes = mutableSetOf<com.example.data.QuickNote>()
+    private var notesList = listOf<com.example.data.QuickNote>()
+    
+    private fun initNotesOverlay() {
+        listNotes = floatingView.findViewById(R.id.list_notes)
+        btnNotesBack = floatingView.findViewById(R.id.btn_notes_back)
+        btnNotesAdd = floatingView.findViewById(R.id.btn_notes_add)
+        btnNotesDelete = floatingView.findViewById(R.id.btn_notes_delete)
+        tvNotesTitle = floatingView.findViewById(R.id.tv_notes_title)
+        
+        listNotes.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
+        notesAdapter = NotesAdapter()
+        listNotes.adapter = notesAdapter
+        
+        btnNotesBack.setOnClickListener {
+            if (selectedNotes.isNotEmpty()) {
+                selectedNotes.clear()
+                updateNotesUi()
+            } else {
+                overlayNotes.visibility = View.GONE
+                toolbarContainer.visibility = View.VISIBLE
+            }
+        }
+        
+        btnNotesAdd.setOnClickListener {
+            showNoteDialog(null)
+        }
+        
+        btnNotesDelete.setOnClickListener {
+            if (selectedNotes.isNotEmpty()) {
+                val toDelete = selectedNotes.toList()
+                serviceScope.launch(Dispatchers.IO) {
+                    val db = com.example.data.AppDatabase.getDatabase(this@FloatingReaderService)
+                    db.quickNoteDao().deleteNotes(toDelete)
+                    selectedNotes.clear()
+                    loadNotes()
+                    withContext(Dispatchers.Main) { updateNotesUi() }
+                }
+            }
+        }
+    }
+    
+    private fun updateNotesUi() {
+        if (selectedNotes.isNotEmpty()) {
+            tvNotesTitle.text = "${selectedNotes.size} Selected"
+            btnNotesDelete.visibility = View.VISIBLE
+            btnNotesAdd.visibility = View.GONE
+        } else {
+            tvNotesTitle.text = "Quick Notes"
+            btnNotesDelete.visibility = View.GONE
+            btnNotesAdd.visibility = View.VISIBLE
+        }
+        notesAdapter?.notifyDataSetChanged()
+    }
+    
+    private fun loadNotes() {
+        serviceScope.launch(Dispatchers.IO) {
+            val db = com.example.data.AppDatabase.getDatabase(this@FloatingReaderService)
+            db.quickNoteDao().getAllNotes().collect { notes ->
+                notesList = notes
+                withContext(Dispatchers.Main) {
+                    notesAdapter?.notifyDataSetChanged()
+                }
+            }
+        }
+    }
+    
+    private fun showNoteDialog(note: com.example.data.QuickNote?) {
+        val dialogView = android.view.LayoutInflater.from(applicationContext).inflate(R.layout.dialog_quick_note, null)
+        val etTitle = dialogView.findViewById<android.widget.EditText>(R.id.et_note_title)
+        val etText = dialogView.findViewById<android.widget.EditText>(R.id.et_note_text)
+        
+        if (note != null) {
+            etTitle.setText(note.title)
+            etText.setText(note.text)
+        }
+        
+        val dialog = android.app.AlertDialog.Builder(applicationContext, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(if (note == null) "New Note" else "Edit Note")
+            .setView(dialogView)
+            .setPositiveButton("Save") { _, _ ->
+                val title = etTitle.text.toString().trim()
+                val text = etText.text.toString().trim()
+                if (title.isNotEmpty() || text.isNotEmpty()) {
+                    serviceScope.launch(Dispatchers.IO) {
+                        val db = com.example.data.AppDatabase.getDatabase(this@FloatingReaderService)
+                        if (note == null) {
+                            db.quickNoteDao().insertNote(com.example.data.QuickNote(title = title, text = text))
+                        } else {
+                            db.quickNoteDao().updateNote(note.copy(title = title, text = text))
+                        }
+                    }
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .create()
+            
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            dialog.window?.setType(android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
+        } else {
+            dialog.window?.setType(android.view.WindowManager.LayoutParams.TYPE_PHONE)
+        }
+        dialog.show()
+    }
+    
+    private inner class NotesAdapter : androidx.recyclerview.widget.RecyclerView.Adapter<NotesAdapter.NoteViewHolder>() {
+        inner class NoteViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
+            val tvTitle: android.widget.TextView = view.findViewById(R.id.tv_note_title)
+            val tvText: android.widget.TextView = view.findViewById(R.id.tv_note_text)
+            val container: View = view.findViewById(R.id.ll_note_container)
+        }
+
+        override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): NoteViewHolder {
+            val view = android.view.LayoutInflater.from(parent.context).inflate(R.layout.item_quick_note, parent, false)
+            return NoteViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: NoteViewHolder, position: Int) {
+            val note = notesList[position]
+            if (note.title.isNotEmpty()) {
+                holder.tvTitle.text = note.title
+                holder.tvTitle.visibility = View.VISIBLE
+            } else {
+                holder.tvTitle.visibility = View.GONE
+            }
+            holder.tvText.text = note.text
+            
+            if (selectedNotes.contains(note)) {
+                holder.container.setBackgroundColor(android.graphics.Color.parseColor("#3A5A7A"))
+            } else {
+                holder.container.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            }
+            
+            holder.itemView.setOnClickListener {
+                if (selectedNotes.isNotEmpty()) {
+                    if (selectedNotes.contains(note)) selectedNotes.remove(note) else selectedNotes.add(note)
+                    updateNotesUi()
+                } else {
+                    showNoteDialog(note)
+                }
+            }
+            
+            holder.itemView.setOnLongClickListener {
+                if (selectedNotes.contains(note)) selectedNotes.remove(note) else selectedNotes.add(note)
+                updateNotesUi()
+                true
+            }
+        }
+
+        override fun getItemCount() = notesList.size
     }
 
     private data class BookmarkItem(val words: String, val chapter: Int, val percentage: Int)
