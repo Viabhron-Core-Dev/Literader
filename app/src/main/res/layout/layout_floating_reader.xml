@@ -50,6 +50,16 @@
                 android:maxLines="2"
                 android:ellipsize="end"
                 android:text="VianReader" />
+            <ImageButton
+                android:id="@+id/btn_top_notes"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:background="@android:color/transparent"
+                android:scaleType="fitCenter"
+                android:src="@android:drawable/ic_menu_edit"
+                android:tint="#AAAAAA"
+                android:layout_gravity="center_vertical"
+                android:contentDescription="Quick Notes" />
         </LinearLayout>
 
         <FrameLayout
@@ -147,6 +157,7 @@
                 android:visibility="gone">
 
                 <LinearLayout
+                    android:id="@+id/library_header"
                     android:layout_width="match_parent"
                     android:layout_height="38dp"
                     android:orientation="horizontal"
@@ -323,6 +334,7 @@
                         android:padding="16dp">
                         
                         <LinearLayout
+                            android:id="@+id/settings_header"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:orientation="horizontal"
@@ -378,6 +390,7 @@
                     android:orientation="vertical">
                     
                     <LinearLayout
+                        android:id="@+id/bookmarks_header"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
@@ -525,6 +538,7 @@
                 android:orientation="vertical"
                 android:visibility="gone">
                 <RelativeLayout
+                    android:id="@+id/notes_header"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:padding="8dp"

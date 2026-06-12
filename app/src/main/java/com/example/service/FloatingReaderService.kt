@@ -39,6 +39,9 @@ class FloatingReaderService : Service() {
     private lateinit var toolbarContainer: View
     private lateinit var bubbleIcon: TextView
     private lateinit var windowContainer: View
+    private lateinit var topDragBar: View
+
+    private var cameFromLibrary = false
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
     private var currentBook: EpubBook? = null
@@ -186,6 +189,7 @@ class FloatingReaderService : Service() {
     private lateinit var listBookmarks: androidx.recyclerview.widget.RecyclerView
 
     private fun initViews() {
+        topDragBar = floatingView.findViewById(R.id.top_drag_bar)
         tvWindowTitle = floatingView.findViewById(R.id.tv_window_title)
         tvContent = floatingView.findViewById(R.id.tv_content)
         scrollView = floatingView.findViewById(R.id.scroll_view)
@@ -370,6 +374,18 @@ class FloatingReaderService : Service() {
         overlayNotes.visibility = View.GONE
         floatingView.findViewById<View>(R.id.overlay_search).visibility = View.GONE
         scrollView.visibility = View.VISIBLE
+        updateTopDragBarVisibility()
+    }
+
+    private fun updateTopDragBarVisibility() {
+        if (overlayLibrary.visibility == View.VISIBLE ||
+            overlayBookmarks.visibility == View.VISIBLE ||
+            overlayNotes.visibility == View.VISIBLE ||
+            overlaySettings.visibility == View.VISIBLE) {
+            topDragBar.visibility = View.GONE
+        } else {
+            topDragBar.visibility = View.VISIBLE
+        }
     }
 
     private var currentLibraryTab = "Recent"
@@ -557,6 +573,7 @@ class FloatingReaderService : Service() {
         scrollView.visibility = View.GONE
         toolbarContainer.visibility = View.GONE
         tvWindowTitle.text = "Library"
+        updateTopDragBarVisibility()
         
         loadLibraryBooks()
         
@@ -610,13 +627,16 @@ class FloatingReaderService : Service() {
     private fun openSettingsView() {
         overlaySettings.visibility = View.VISIBLE
         toolbarContainer.visibility = View.GONE
+        updateTopDragBarVisibility()
     }
 
     private fun openNotesView() {
+        cameFromLibrary = (overlayLibrary.visibility == View.VISIBLE)
         hideOverlays()
         overlayNotes.visibility = View.VISIBLE
         toolbarContainer.visibility = View.GONE
         loadNotes()
+        updateTopDragBarVisibility()
     }
 
     private fun openBookmarksView() {
@@ -624,6 +644,7 @@ class FloatingReaderService : Service() {
         toolbarContainer.visibility = View.GONE
         listBookmarks.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
         listBookmarks.adapter = BookmarkAdapter()
+        updateTopDragBarVisibility()
     }
 
     private fun setupListeners() {
@@ -636,6 +657,17 @@ class FloatingReaderService : Service() {
         val dragListener = createLongPressDragListener()
         bubbleIcon.setOnTouchListener(dragListener)
         topDragBar.setOnTouchListener(dragListener)
+
+        // Make overlay headers draggable too as they replace topDragBar when overlays are shown
+        floatingView.findViewById<View>(R.id.library_header)?.setOnTouchListener(dragListener)
+        floatingView.findViewById<View>(R.id.notes_header)?.setOnTouchListener(dragListener)
+        floatingView.findViewById<View>(R.id.settings_header)?.setOnTouchListener(dragListener)
+        floatingView.findViewById<View>(R.id.bookmarks_header)?.setOnTouchListener(dragListener)
+
+        // Click listener for top notes button in reader
+        floatingView.findViewById<View>(R.id.btn_top_notes)?.setOnClickListener {
+            openNotesView()
+        }
 
         bubbleIcon.setOnClickListener { setFolded(false) }
 
@@ -1052,10 +1084,25 @@ class FloatingReaderService : Service() {
         serviceScope.launch {
             val db = AppDatabase.getDatabase(this@FloatingReaderService)
             val fetchedBook = db.epubDao().getBookById(bookId)
-            currentBook = fetchedBook?.copy(lastOpenedTimestamp = System.currentTimeMillis())
-            currentBook?.let {
-                db.epubDao().updateBook(it)
-                currentChapterIndex = it.lastReadChapter
+            var book = fetchedBook?.copy(lastOpenedTimestamp = System.currentTimeMillis())
+            if (book != null) {
+                // If there's a TrackerBook from Moon+ Reader or track goal, sync reading progress to EPUB
+                val trackerBook = db.trackerDao().getAllBooks().firstOrNull { it.title.equals(book.title, true) }
+                if (trackerBook != null && trackerBook.readChapters > book.lastReadChapter) {
+                    book = book.copy(lastReadChapter = trackerBook.readChapters)
+                }
+                db.epubDao().updateBook(book)
+                currentBook = book
+                
+                var targetChapter = book.lastReadChapter
+                val totalChapters = book.totalChapters
+                if (targetChapter >= totalChapters) {
+                    targetChapter = totalChapters - 1
+                }
+                if (targetChapter < 0) {
+                    targetChapter = 0
+                }
+                currentChapterIndex = targetChapter
                 loadChapterText()
             }
         }
@@ -1647,7 +1694,13 @@ class FloatingReaderService : Service() {
                 updateNotesUi()
             } else {
                 overlayNotes.visibility = View.GONE
-                toolbarContainer.visibility = View.VISIBLE
+                if (cameFromLibrary) {
+                    openLibraryView()
+                } else {
+                    scrollView.visibility = View.VISIBLE
+                    toolbarContainer.visibility = View.VISIBLE
+                }
+                updateTopDragBarVisibility()
             }
         }
         
