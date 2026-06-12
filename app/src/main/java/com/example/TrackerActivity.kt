@@ -52,6 +52,7 @@ fun TrackerScreen(onBack: () -> Unit, db: AppDatabase) {
     var selectedBook by remember { mutableStateOf<TrackerBook?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var filterGenre by remember { mutableStateOf("") }
+    var sortOption by remember { mutableStateOf("Date") }
 
     LaunchedEffect(Unit) {
         books = withContext(Dispatchers.IO) { db.trackerDao().getAllBooks() }
@@ -60,7 +61,14 @@ fun TrackerScreen(onBack: () -> Unit, db: AppDatabase) {
     val filteredBooks = books.filter {
         (searchQuery.isEmpty() || it.title.contains(searchQuery, ignoreCase = true) || it.author.contains(searchQuery, ignoreCase = true)) &&
         (filterGenre.isEmpty() || it.genres.contains(filterGenre, ignoreCase = true))
-    }
+    }.sortedWith(Comparator { a, b ->
+        when (sortOption) {
+            "Name" -> a.title.compareTo(b.title, ignoreCase = true)
+            "Most Read" -> b.readChapters.compareTo(a.readChapters)
+            "Date" -> b.lastUpdatedTimestamp.compareTo(a.lastUpdatedTimestamp)
+            else -> b.lastUpdatedTimestamp.compareTo(a.lastUpdatedTimestamp) // Default to Date descending
+        }
+    })
 
     val reloadBooks: () -> Unit = {
         coroutineScope.launch {
@@ -135,8 +143,10 @@ fun TrackerScreen(onBack: () -> Unit, db: AppDatabase) {
                                         foundData = true
                                         com.example.LogKeeper.writeLog("MoonPlusImport", "Found relevant table $tableName. Columns: ${cols.joinToString(",")}")
                                         while (booksCursor.moveToNext()) {
-                                            val title = booksCursor.getString(titleIdx) ?: continue
+                                            var title = booksCursor.getString(titleIdx) ?: continue
                                             if (title.isBlank()) continue
+                                            title = title.replace(Regex("(?i)\\.(epub|mobi|pdf|cbz|cbr|txt|fb2)$"), "").trim()
+                                            
                                             val author = if (authorIdx != -1) booksCursor.getString(authorIdx) else "Unknown"
                                             val totalCh = if (totalIdx != -1) booksCursor.getInt(totalIdx) else 0
                                             
@@ -204,44 +214,79 @@ fun TrackerScreen(onBack: () -> Unit, db: AppDatabase) {
                                 android.util.Log.d("TrackerActivity", "Moon+ Backup content prefix of ${file.name}: \n$logContent")
                                 com.example.LogKeeper.writeLog("MoonPlusImport", "File: ${file.name}\n$logContent")
                                 
-                                var title = Regex("(?i)title[=:]\\s*([^\\n\\r]+)").find(content)?.groupValues?.get(1)?.trim()
-                                if (title == null) {
-                                    title = file.name.replace(Regex("(?i)\\.(po|tag|stat|mrstd|txt|epub|pdf|mobi)$"), "").trim()
-                                }
-                                
-                                // Look for current chapter / progress patterns
-                                val readChMatch = Regex("(?i)(?:current_chapter|last_chapter|chapter|read|c)[=:\\s]*(\\d+)").find(content)
-                                val totChMatch = Regex("(?i)(?:total_chapters|total)[=:\\s]*(\\d+)").find(content)
-                                val progressMatch = Regex("(?i)(?:p|progress|percent)[=:\\s]*([0-9.]+)\\s*%?").find(content)
-                                
-                                var readCh = readChMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
-                                val totCh = totChMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
-                                val progress = progressMatch?.groupValues?.get(1)?.toFloatOrNull() ?: 0f
-
-                                if (readCh == 0 && progress > 0f) {
-                                    if (totCh > 0) {
-                                        readCh = ((progress / 100f) * totCh).toInt()
-                                    } else {
-                                        readCh = progress.toInt() // fallback
+                                // Check if it's an XML tag file with positions (e.g., positions10.xml / com.flyersoft.moonreader_8.tag)
+                                val posMatches = Regex("(?i)<string name=\"[^\"]*/([^/\"]+)\\.(?:epub|mobi|pdf|txt|cbz|cbr|fb2|azw3)[^\"]*\">(\\d+)@[^<]*:([\\d.]+)%?</string>").findAll(content)
+                                var parsedFromPositions = false
+                                for (match in posMatches) {
+                                    val tTitle = match.groupValues[1].replace(Regex("(?i)\\.(epub|mobi|pdf|cbz|cbr|txt|fb2)$"), "").trim()
+                                    val tReadCh = match.groupValues[2].toIntOrNull() ?: 0
+                                    val tProgress = match.groupValues[3].toFloatOrNull() ?: 0f
+                                    if (tTitle.isNotEmpty() && (tReadCh > 0 || tProgress > 0)) {
+                                        parsedFromPositions = true
+                                        var finalReadCh = tReadCh
+                                        if (finalReadCh == 0 && tProgress > 0f) finalReadCh = tProgress.toInt()
+                                        
+                                        val existing = existingTrackerBooks.find { it.title.equals(tTitle, true) || tTitle.contains(it.title, true) }
+                                        if (existing != null) {
+                                            if (finalReadCh > existing.readChapters) {
+                                                val updatedBook = existing.copy(readChapters = finalReadCh, lastUpdatedTimestamp = System.currentTimeMillis())
+                                                db.trackerDao().insertBook(updatedBook)
+                                                existingTrackerBooks[existingTrackerBooks.indexOf(existing)] = updatedBook
+                                                updated++
+                                            }
+                                        } else {
+                                            val newBook = TrackerBook(
+                                                title = tTitle, author = "Unknown", readChapters = finalReadCh, totalChapters = 0,
+                                                genres = "Moon+ Backup", addedTimestamp = System.currentTimeMillis(),
+                                                lastUpdatedTimestamp = System.currentTimeMillis()
+                                            )
+                                            db.trackerDao().insertBook(newBook)
+                                            existingTrackerBooks.add(newBook)
+                                            updated++
+                                        }
                                     }
                                 }
                                 
-                                if (title.isNotEmpty() && title.length > 1) { // avoid processing random tiny files as books
-                                    val existing = existingTrackerBooks.find { it.title.equals(title, true) || title.contains(it.title, true) }
-                                    if (existing != null) {
-                                        db.trackerDao().insertBook(existing.copy(
-                                            totalChapters = if (totCh > existing.totalChapters) totCh else existing.totalChapters,
-                                            readChapters = if (readCh > existing.readChapters) readCh else existing.readChapters,
-                                            lastUpdatedTimestamp = System.currentTimeMillis()
-                                        ))
-                                        updated++
-                                    } else if (readCh > 0 || totCh > 0 || progress > 0f) {
-                                        db.trackerDao().insertBook(TrackerBook(
-                                            title = title, author = "Unknown", readChapters = readCh, totalChapters = totCh,
-                                            genres = "Moon+ Backup", addedTimestamp = System.currentTimeMillis(),
-                                            lastUpdatedTimestamp = System.currentTimeMillis()
-                                        ))
-                                        updated++
+                                if (!parsedFromPositions) {
+                                    var title = Regex("(?i)title[=:]\\s*([^\\n\\r]+)").find(content)?.groupValues?.get(1)?.trim()
+                                    if (title == null) {
+                                        title = file.name.replace(Regex("(?i)\\.(po|tag|stat|mrstd|txt|epub|pdf|mobi)$"), "").trim()
+                                    }
+                                    
+                                    // Look for current chapter / progress patterns
+                                    val readChMatch = Regex("(?i)(?:current_chapter|last_chapter|chapter|read|c)[=:\\s]*(\\d+)").find(content)
+                                    val totChMatch = Regex("(?i)(?:total_chapters|total)[=:\\s]*(\\d+)").find(content)
+                                    val progressMatch = Regex("(?i)(?:p|progress|percent)[=:\\s]*([0-9.]+)\\s*%?").find(content)
+                                    
+                                    var readCh = readChMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                                    val totCh = totChMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                                    val progress = progressMatch?.groupValues?.get(1)?.toFloatOrNull() ?: 0f
+    
+                                    if (readCh == 0 && progress > 0f) {
+                                        if (totCh > 0) {
+                                            readCh = ((progress / 100f) * totCh).toInt()
+                                        } else {
+                                            readCh = progress.toInt() // fallback
+                                        }
+                                    }
+                                    
+                                    if (title.isNotEmpty() && title.length > 1) { // avoid processing random tiny files as books
+                                        val existing = existingTrackerBooks.find { it.title.equals(title, true) || title.contains(it.title, true) }
+                                        if (existing != null) {
+                                            db.trackerDao().insertBook(existing.copy(
+                                                totalChapters = if (totCh > existing.totalChapters) totCh else existing.totalChapters,
+                                                readChapters = if (readCh > existing.readChapters) readCh else existing.readChapters,
+                                                lastUpdatedTimestamp = System.currentTimeMillis()
+                                            ))
+                                            updated++
+                                        } else if (readCh > 0 || totCh > 0 || progress > 0f) {
+                                            db.trackerDao().insertBook(TrackerBook(
+                                                title = title, author = "Unknown", readChapters = readCh, totalChapters = totCh,
+                                                genres = "Moon+ Backup", addedTimestamp = System.currentTimeMillis(),
+                                                lastUpdatedTimestamp = System.currentTimeMillis()
+                                            ))
+                                            updated++
+                                        }
                                     }
                                 }
                             }
@@ -351,8 +396,17 @@ fun TrackerScreen(onBack: () -> Unit, db: AppDatabase) {
                 placeholder = { Text("Filter by tag/genre") },
                 singleLine = true
             )
+            
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Sort:", modifier = Modifier.align(Alignment.CenterVertically))
+                listOf("Date", "Most Read", "Name").forEach { opt ->
+                    TextButton(onClick = { sortOption = opt }, modifier = Modifier.height(36.dp)) {
+                        Text(opt, fontWeight = if (sortOption == opt) FontWeight.Bold else FontWeight.Normal)
+                    }
+                }
+            }
 
-            LazyColumn(modifier = Modifier.fillMaxSize().padding(top = 8.dp)) {
+            LazyColumn(modifier = Modifier.fillMaxSize().padding(top = 0.dp)) {
                 items(filteredBooks) { book ->
                     TrackerBookItem(
                         book = book,
