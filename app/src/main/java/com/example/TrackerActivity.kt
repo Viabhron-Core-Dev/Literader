@@ -341,6 +341,35 @@ fun TrackerScreen(onBack: () -> Unit, db: AppDatabase) {
                     }
                 },
                 actions = {
+                    IconButton(onClick = {
+                        coroutineScope.launch(Dispatchers.IO) {
+                            val allTrackerBooks = db.trackerDao().getAllBooks()
+                            val duplicates = allTrackerBooks.groupBy { it.title.trim().lowercase() }
+                                .filter { it.value.size > 1 }
+                            var deletedCount = 0
+                            for ((_, booksGroup) in duplicates) {
+                                val sorted = booksGroup.sortedWith(compareByDescending<TrackerBook> { it.readChapters }
+                                    .thenByDescending { it.totalChapters }
+                                    .thenByDescending { it.lastUpdatedTimestamp })
+                                val toKeep = sorted.first()
+                                val toDelete = sorted.drop(1)
+                                for (book in toDelete) {
+                                    db.trackerDao().deleteBook(book)
+                                    deletedCount++
+                                }
+                            }
+                            withContext(Dispatchers.Main) {
+                                if (deletedCount > 0) {
+                                    android.widget.Toast.makeText(context, "Cleaned up $deletedCount duplicated items.", android.widget.Toast.LENGTH_SHORT).show()
+                                    reloadBooks()
+                                } else {
+                                    android.widget.Toast.makeText(context, "No duplicates found.", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    }) {
+                        Icon(Icons.Default.AutoFixHigh, contentDescription = "Cleanup Duplicates")
+                    }
                     IconButton(onClick = { 
                         moonImportLauncher.launch(arrayOf("*/*"))
                     }) {
