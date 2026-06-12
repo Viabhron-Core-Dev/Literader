@@ -129,468 +129,62 @@
             </LinearLayout>
 
             <!-- Container for Chapter List Overlay (Hidden by Default) -->
-            <FrameLayout
-                android:id="@+id/overlay_chapters"
+            <ViewStub
+                android:id="@+id/stub_overlay_chapters"
+                android:inflatedId="@+id/overlay_chapters"
+                android:layout="@layout/layout_overlay_chapters"
                 android:layout_width="200dp"
                 android:layout_height="match_parent"
-                android:layout_gravity="start"
-                android:background="#E6222222"
-                android:elevation="8dp"
-                android:clickable="true"
-                android:visibility="gone">
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/list_chapters"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:clipToPadding="false"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="8dp"/>
-            </FrameLayout>
+                android:layout_gravity="start" />
 
             <!-- Container for Library Overlay (Hidden by Default) -->
-            <LinearLayout
-                android:id="@+id/overlay_library"
+            <ViewStub
+                android:id="@+id/stub_overlay_library"
+                android:inflatedId="@+id/overlay_library"
+                android:layout="@layout/layout_overlay_library"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:orientation="vertical"
-                android:background="#222222"
-                android:visibility="gone">
-
-                <LinearLayout
-                    android:id="@+id/library_header"
-                    android:layout_width="match_parent"
-                    android:layout_height="38dp"
-                    android:orientation="horizontal"
-                    android:background="#151515"
-                    android:gravity="center_vertical"
-                    android:paddingHorizontal="16dp">
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Library"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:textColor="#FFFFFF" />
-                        
-                    <ImageButton
-                        android:id="@+id/btn_library_tracker"
-                        android:layout_width="28dp"
-                        android:layout_height="28dp"
-                        android:background="@android:color/transparent"
-                        android:src="@drawable/ic_fab_tracker_game"
-                        android:scaleType="fitCenter"
-                        android:layout_marginEnd="16dp" />
-                        
-                    <ImageButton
-                        android:id="@+id/btn_library_notes"
-                        android:layout_width="28dp"
-                        android:layout_height="28dp"
-                        android:background="@android:color/transparent"
-                        android:src="@android:drawable/ic_menu_edit"
-                        android:tint="#FFFFFF"
-                        android:scaleType="fitCenter"
-                        android:layout_marginEnd="16dp" />
-                        
-                    <ImageButton
-                        android:id="@+id/btn_library_settings"
-                        android:layout_width="28dp"
-                        android:layout_height="28dp"
-                        android:background="@android:color/transparent"
-                        android:src="@android:drawable/ic_menu_preferences"
-                        android:scaleType="fitCenter" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="36dp"
-                    android:orientation="horizontal"
-                    android:background="#111111">
-                    <Button
-                        android:id="@+id/btn_tab_recent"
-                        android:layout_width="0dp"
-                        android:layout_height="match_parent"
-                        android:layout_weight="1"
-                        android:text="Recent"
-                        android:textColor="#FFFFFF"
-                        android:textSize="13sp"
-                        android:padding="0dp"
-                        android:minHeight="0dp"
-                        style="?android:attr/borderlessButtonStyle" />
-                    <Button
-                        android:id="@+id/btn_tab_imported"
-                        android:layout_width="0dp"
-                        android:layout_height="match_parent"
-                        android:layout_weight="1"
-                        android:text="Imported"
-                        android:textColor="#FFFFFF"
-                        android:textSize="13sp"
-                        android:padding="0dp"
-                        android:minHeight="0dp"
-                        style="?android:attr/borderlessButtonStyle" />
-                </LinearLayout>
-
-                <!-- Sorting and up navigation for File Explorer -->
-                <LinearLayout
-                    android:id="@+id/bar_explorer_tools"
-                    android:layout_width="match_parent"
-                    android:layout_height="36dp"
-                    android:orientation="horizontal"
-                    android:background="#151515"
-                    android:paddingHorizontal="16dp"
-                    android:paddingVertical="4dp"
-                    android:gravity="center_vertical"
-                    android:visibility="gone">
-                    <ImageButton
-                        android:id="@+id/btn_explorer_up"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:background="?android:attr/selectableItemBackground"
-                        android:src="@drawable/ic_arrow_back"
-                        android:tint="#FFFFFF"
-                        android:visibility="gone" />
-                    <TextView
-                        android:id="@+id/tv_explorer_path"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginStart="8dp"
-                        android:layout_gravity="center_vertical"
-                        android:textColor="#AAAAAA"
-                        android:textSize="14sp"
-                        android:singleLine="true"
-                        android:ellipsize="start" />
-                    <Button
-                        android:id="@+id/btn_sort_type"
-                        android:layout_width="wrap_content"
-                        android:layout_height="32dp"
-                        android:text="Name"
-                        android:textSize="12sp"
-                        android:textColor="#FFFFFF"
-                        android:background="?android:attr/selectableItemBackground" />
-                    <ImageButton
-                        android:id="@+id/btn_sort_order"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:background="?android:attr/selectableItemBackground"
-                        android:src="@android:drawable/arrow_down_float"
-                        android:tint="#FFFFFF" />
-                </LinearLayout>
-
-                <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent">
-                    
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/list_library"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:clipToPadding="false"
-                        android:paddingTop="8dp"
-                        android:paddingBottom="96dp"/>
-                        
-                    <!-- Bottom Right FABs purely floating over list -->
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:layout_gravity="bottom|end"
-                        android:layout_marginEnd="16dp"
-                        android:layout_marginBottom="16dp"
-                        android:gravity="center">
-                        <ImageButton
-                            android:id="@+id/fab_continue"
-                            android:layout_width="48dp"
-                            android:layout_height="48dp"
-                            android:layout_marginBottom="8dp"
-                            android:background="@android:color/transparent"
-                            android:scaleType="fitCenter"
-                            android:src="@drawable/ic_fab_continue_game" />
-                        <ImageButton
-                            android:id="@+id/fab_add_book"
-                            android:layout_width="56dp"
-                            android:layout_height="56dp"
-                            android:background="@android:color/transparent"
-                            android:scaleType="fitCenter"
-                            android:src="@drawable/ic_fab_add_game" />
-                    </LinearLayout>
-                </FrameLayout>
-            </LinearLayout>
+                android:layout_height="match_parent" />
 
             <!-- Container for Settings Overlay (Hidden by Default) -->
-            <FrameLayout
-                android:id="@+id/overlay_settings"
+            <ViewStub
+                android:id="@+id/stub_overlay_settings"
+                android:inflatedId="@+id/overlay_settings"
+                android:layout="@layout/layout_overlay_settings"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="#DD111111"
-                android:visibility="gone">
-                <ScrollView
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent">
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-                        
-                        <LinearLayout
-                            android:id="@+id/settings_header"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:layout_marginBottom="16dp">
-                            <ImageButton
-                                android:id="@+id/btn_settings_back"
-                                android:layout_width="32dp"
-                                android:layout_height="32dp"
-                                android:background="@android:color/transparent"
-                                android:src="@drawable/ic_arrow_back"
-                                android:tint="#FFFFFF"
-                                android:scaleType="fitCenter" />
-                            <TextView 
-                                android:layout_width="wrap_content" 
-                                android:layout_height="wrap_content" 
-                                android:text="Settings" 
-                                android:textColor="#FFF" 
-                                android:textSize="20sp" 
-                                android:textStyle="bold"
-                                android:layout_marginStart="16dp"/>
-                        </LinearLayout>
-                        
-                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Font Size" android:textColor="#CCC" android:layout_marginTop="8dp"/>
-                        <SeekBar android:id="@+id/seek_font_size" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="40" android:progress="18" android:paddingTop="8dp" android:paddingBottom="16dp"/>
-                        
-                        <Switch android:id="@+id/switch_bookmarks" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Enable Bookmarks UI" android:textColor="#CCC" android:paddingVertical="8dp"/>
-                        <Switch android:id="@+id/switch_theme" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Light Theme" android:textColor="#CCC" android:paddingVertical="8dp"/>
-                        
-                        <Switch android:id="@+id/switch_keep_screen_on" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Keep Screen On" android:textColor="#CCC" android:paddingVertical="8dp"/>
-                        
-                        <Switch android:id="@+id/switch_scoped_dir" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Enable Full File Explorer" android:textColor="#CCC" android:paddingVertical="8dp"/>
-                        
-                        <Button android:id="@+id/btn_backup_data" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Backup App Data (No Books)" android:layout_marginTop="16dp"/>
-                        <Button android:id="@+id/btn_backup_data_books" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Backup App Data (With Books)" android:layout_marginTop="8dp"/>
-                        <Button android:id="@+id/btn_restore_data" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Restore App Data" android:layout_marginTop="8dp"/>
-                        
-                        <Button android:id="@+id/btn_export_logs" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Export Logs" android:layout_marginTop="24dp"/>
-                    </LinearLayout>
-                </ScrollView>
-            </FrameLayout>
+                android:layout_height="match_parent" />
 
             <!-- Bookmarks View -->
-            <FrameLayout
-                android:id="@+id/overlay_bookmarks"
+            <ViewStub
+                android:id="@+id/stub_overlay_bookmarks"
+                android:inflatedId="@+id/overlay_bookmarks"
+                android:layout="@layout/layout_overlay_bookmarks"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="#DD111111"
-                android:visibility="gone">
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:orientation="vertical">
-                    
-                    <LinearLayout
-                        android:id="@+id/bookmarks_header"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:background="#151515"
-                        android:padding="8dp">
-
-                        <ImageView
-                            android:id="@+id/btn_bookmarks_back"
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
-                            android:src="@drawable/ic_arrow_back"
-                            android:tint="#FFFFFF"
-                            android:padding="4dp" />
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_weight="1"
-                            android:layout_height="wrap_content"
-                            android:text="Bookmarks" 
-                            android:textColor="#FFF" 
-                            android:textSize="20sp" 
-                            android:textStyle="bold"
-                            android:layout_marginStart="16dp"/>
-                            
-                        <Button
-                            android:id="@+id/btn_add_bookmark"
-                            android:layout_width="wrap_content"
-                            android:layout_height="40dp"
-                            android:text="Add"
-                            android:textSize="12sp"
-                            android:padding="8dp" />
-                    </LinearLayout>
-                    
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/list_bookmarks"
-                        android:layout_width="match_parent"
-                        android:layout_height="0dp"
-                        android:layout_weight="1"
-                        android:padding="8dp" />
-                </LinearLayout>
-            </FrameLayout>
+                android:layout_height="match_parent" />
 
             <!-- Search Overlay -->
-            <LinearLayout
-                android:id="@+id/overlay_search"
+            <ViewStub
+                android:id="@+id/stub_overlay_search"
+                android:inflatedId="@+id/overlay_search"
+                android:layout="@layout/layout_overlay_search"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_gravity="top"
-                android:orientation="horizontal"
-                android:background="#E6222222"
-                android:gravity="center_vertical"
-                android:padding="8dp"
-                android:visibility="gone">
-                <EditText
-                    android:id="@+id/et_search"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="wrap_content"
-                    android:hint="Search..."
-                    android:textColorHint="#888888"
-                    android:textColor="#FFFFFF"
-                    android:backgroundTint="#888888"
-                    android:singleLine="true" />
-                <Button
-                    android:id="@+id/btn_do_search"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Chap"
-                    android:minWidth="0dp"
-                    android:paddingHorizontal="12dp"
-                    android:layout_marginStart="4dp" />
-                <Button
-                    android:id="@+id/btn_do_search_full"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Full"
-                    android:minWidth="0dp"
-                    android:paddingHorizontal="12dp"
-                    android:layout_marginStart="4dp" />
-                <ImageView
-                    android:id="@+id/btn_close_search"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:layout_marginStart="8dp"
-                    android:padding="6dp"
-                    android:src="@android:drawable/ic_menu_close_clear_cancel"
-                    android:tint="#FFFFFF" />
-            </LinearLayout>
+                android:layout_gravity="top" />
 
             <!-- Search Results View -->
-            <FrameLayout
-                android:id="@+id/overlay_search_results"
+            <ViewStub
+                android:id="@+id/stub_overlay_search_results"
+                android:inflatedId="@+id/overlay_search_results"
+                android:layout="@layout/layout_overlay_search_results"
                 android:layout_width="match_parent"
                 android:layout_height="400dp"
-                android:layout_gravity="bottom"
-                android:background="#E6222222"
-                android:visibility="gone">
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:orientation="vertical">
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:background="#111111"
-                        android:padding="8dp"
-                        android:gravity="center_vertical">
-                        <TextView
-                            android:id="@+id/tv_search_status"
-                            android:layout_width="0dp"
-                            android:layout_weight="1"
-                            android:layout_height="wrap_content"
-                            android:textColor="#FFFFFF"
-                            android:text="Searching..."
-                            android:textStyle="bold"/>
-                        <ImageView
-                            android:id="@+id/btn_close_search_results"
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
-                            android:padding="4dp"
-                            android:src="@android:drawable/ic_menu_close_clear_cancel"
-                            android:tint="#FFFFFF" />
-                    </LinearLayout>
-                    <ScrollView
-                        android:layout_width="match_parent"
-                        android:layout_height="0dp"
-                        android:layout_weight="1">
-                        <LinearLayout
-                            android:id="@+id/ll_search_results"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:padding="8dp" />
-                    </ScrollView>
-                </LinearLayout>
-            </FrameLayout>
+                android:layout_gravity="bottom" />
 
-            <LinearLayout
-                android:id="@+id/overlay_notes"
+            <ViewStub
+                android:id="@+id/stub_overlay_notes"
+                android:inflatedId="@+id/overlay_notes"
+                android:layout="@layout/layout_overlay_notes"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="#151515"
-                android:orientation="vertical"
-                android:visibility="gone">
-                <RelativeLayout
-                    android:id="@+id/notes_header"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:padding="8dp"
-                    android:background="#2A2A2A">
-                    <ImageButton
-                        android:id="@+id/btn_notes_back"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:layout_alignParentStart="true"
-                        android:layout_centerVertical="true"
-                        android:background="?android:attr/selectableItemBackgroundBorderless"
-                        android:src="@android:drawable/ic_media_previous"
-                        android:tint="#FFFFFF" />
-                    <TextView
-                        android:id="@+id/tv_notes_title"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_toEndOf="@id/btn_notes_back"
-                        android:layout_centerVertical="true"
-                        android:layout_marginStart="16dp"
-                        android:text="Quick Notes"
-                        android:textColor="#FFFFFF"
-                        android:textSize="18sp"
-                        android:textStyle="bold" />
-                    <ImageButton
-                        android:id="@+id/btn_notes_delete"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:layout_toStartOf="@id/btn_notes_add"
-                        android:layout_centerVertical="true"
-                        android:layout_marginEnd="16dp"
-                        android:background="?android:attr/selectableItemBackgroundBorderless"
-                        android:src="@android:drawable/ic_menu_delete"
-                        android:tint="#FFFFFF"
-                        android:visibility="gone" />
-                    <ImageButton
-                        android:id="@+id/btn_notes_add"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:layout_alignParentEnd="true"
-                        android:layout_centerVertical="true"
-                        android:background="?android:attr/selectableItemBackgroundBorderless"
-                        android:src="@android:drawable/ic_menu_add"
-                        android:tint="#FFFFFF" />
-                </RelativeLayout>
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/list_notes"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:clipToPadding="false"
-                    android:padding="8dp" />
-            </LinearLayout>
+                android:layout_height="match_parent" />
 
             <!-- Toggleable Toolbar (Moonreader style) -->
             <LinearLayout

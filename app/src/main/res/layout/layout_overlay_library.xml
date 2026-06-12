@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#222222">
+
+    <LinearLayout
+        android:id="@+id/library_header"
+        android:layout_width="match_parent"
+        android:layout_height="38dp"
+        android:orientation="horizontal"
+        android:background="#151515"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="16dp">
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Library"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF" />
+            
+        <ImageButton
+            android:id="@+id/btn_library_tracker"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:background="@android:color/transparent"
+            android:src="@drawable/ic_fab_tracker_game"
+            android:scaleType="fitCenter"
+            android:layout_marginEnd="16dp" />
+            
+        <ImageButton
+            android:id="@+id/btn_library_notes"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:background="@android:color/transparent"
+            android:src="@android:drawable/ic_menu_edit"
+            android:tint="#FFFFFF"
+            android:scaleType="fitCenter"
+            android:layout_marginEnd="16dp" />
+            
+        <ImageButton
+            android:id="@+id/btn_library_settings"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:background="@android:color/transparent"
+            android:src="@android:drawable/ic_menu_preferences"
+            android:scaleType="fitCenter" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:orientation="horizontal"
+        android:background="#111111">
+        <Button
+            android:id="@+id/btn_tab_recent"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:text="Recent"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:padding="0dp"
+            android:minHeight="0dp"
+            style="?android:attr/borderlessButtonStyle" />
+        <Button
+            android:id="@+id/btn_tab_imported"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:text="Imported"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:padding="0dp"
+            android:minHeight="0dp"
+            style="?android:attr/borderlessButtonStyle" />
+    </LinearLayout>
+
+    <!-- Sorting and up navigation for File Explorer -->
+    <LinearLayout
+        android:id="@+id/bar_explorer_tools"
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:orientation="horizontal"
+        android:background="#151515"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="4dp"
+        android:gravity="center_vertical"
+        android:visibility="gone">
+        <ImageButton
+            android:id="@+id/btn_explorer_up"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:src="@drawable/ic_arrow_back"
+            android:tint="#FFFFFF"
+            android:visibility="gone" />
+        <TextView
+            android:id="@+id/tv_explorer_path"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:layout_gravity="center_vertical"
+            android:textColor="#AAAAAA"
+            android:textSize="14sp"
+            android:singleLine="true"
+            android:ellipsize="start" />
+        <Button
+            android:id="@+id/btn_sort_type"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:text="Name"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF"
+            android:background="?android:attr/selectableItemBackground" />
+        <ImageButton
+            android:id="@+id/btn_sort_order"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:src="@android:drawable/arrow_down_float"
+            android:tint="#FFFFFF" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/list_library"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingTop="8dp"
+            android:paddingBottom="96dp"/>
+            
+        <!-- Bottom Right FABs purely floating over list -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="16dp"
+            android:gravity="center">
+            <ImageButton
+                android:id="@+id/fab_continue"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginBottom="8dp"
+                android:background="@android:color/transparent"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_fab_continue_game" />
+            <ImageButton
+                android:id="@+id/fab_add_book"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:background="@android:color/transparent"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_fab_add_game" />
+        </LinearLayout>
+    </FrameLayout>
+</LinearLayout>

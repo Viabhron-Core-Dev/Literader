@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_gravity="top"
+    android:orientation="horizontal"
+    android:background="#E6222222"
+    android:gravity="center_vertical"
+    android:padding="8dp">
+    <EditText
+        android:id="@+id/et_search"
+        android:layout_width="0dp"
+        android:layout_weight="1"
+        android:layout_height="wrap_content"
+        android:hint="Search..."
+        android:textColorHint="#888888"
+        android:textColor="#FFFFFF"
+        android:backgroundTint="#888888"
+        android:singleLine="true" />
+    <Button
+        android:id="@+id/btn_do_search"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Chap"
+        android:minWidth="0dp"
+        android:paddingHorizontal="12dp"
+        android:layout_marginStart="4dp" />
+    <Button
+        android:id="@+id/btn_do_search_full"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Full"
+        android:minWidth="0dp"
+        android:paddingHorizontal="12dp"
+        android:layout_marginStart="4dp" />
+    <ImageView
+        android:id="@+id/btn_close_search"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginStart="8dp"
+        android:padding="6dp"
+        android:src="@android:drawable/ic_menu_close_clear_cancel"
+        android:tint="#FFFFFF" />
+</LinearLayout>
