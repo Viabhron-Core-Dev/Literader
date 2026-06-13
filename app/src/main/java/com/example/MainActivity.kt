@@ -252,7 +252,8 @@ fun WelcomeScreen(onContinue: () -> Unit) {
         
         Button(
             onClick = {
-                prefs.edit()
+                val readerPrefs = context.getSharedPreferences("FloatingReaderPrefs", android.content.Context.MODE_PRIVATE)
+                readerPrefs.edit()
                     .putBoolean("use_scoped_dir", useExplorerMode)
                     .putString("last_library_tab", "Imported")
                     .apply()

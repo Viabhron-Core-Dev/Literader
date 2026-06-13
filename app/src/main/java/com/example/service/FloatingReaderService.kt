@@ -597,8 +597,10 @@ class FloatingReaderService : Service() {
                     val lastBook = prefs.getInt("last_book_id", -1)
                     if (lastBook != -1) {
                         loadBook(lastBook)
+                        hideOverlays()
+                    } else {
+                        showToast("No book read yet")
                     }
-                    hideOverlays()
                 }
 
                 val gestureDetector = android.view.GestureDetector(this, object : android.view.GestureDetector.SimpleOnGestureListener() {
