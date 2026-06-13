@@ -14,10 +14,66 @@ object EpubParser {
             if (!bookDir.exists()) bookDir.mkdirs()
 
             ZipFile(epubFile).use { zip ->
-                val entries = zip.entries().asSequence()
-                    .filter { it.name.endsWith(".html", true) || it.name.endsWith(".xhtml", true) || it.name.endsWith(".htm", true) }
-                    .sortedBy { it.name }
-                    .toList()
+                var opfPath = ""
+                val containerEntry = zip.getEntry("META-INF/container.xml")
+                if (containerEntry != null) {
+                    val containerXml = zip.getInputStream(containerEntry).bufferedReader().readText()
+                    val match = Regex("full-path=\"([^\"]+)\"").find(containerXml)
+                    if (match != null) {
+                        opfPath = match.groupValues[1]
+                    }
+                }
+                
+                val chapterHrefs = mutableListOf<String>()
+                if (opfPath.isNotEmpty()) {
+                    val opfEntry = zip.getEntry(opfPath)
+                    if (opfEntry != null) {
+                        val opfContent = zip.getInputStream(opfEntry).bufferedReader().readText()
+                        
+                        // Parse manifest
+                        val manifestMap = mutableMapOf<String, String>()
+                        val itemRegex = Regex("<item\\s+([^>]+)>")
+                        itemRegex.findAll(opfContent).forEach { match ->
+                            val attrs = match.groupValues[1]
+                            val idMatch = Regex("id=\"([^\"]+)\"").find(attrs)
+                            val hrefMatch = Regex("href=\"([^\"]+)\"").find(attrs)
+                            if (idMatch != null && hrefMatch != null) {
+                                manifestMap[idMatch.groupValues[1]] = hrefMatch.groupValues[1]
+                            }
+                        }
+
+                        // Parse spine
+                        val spineMatch = Regex("<spine.*?</spine>", RegexOption.DOT_MATCHES_ALL).find(opfContent)
+                        if (spineMatch != null) {
+                            val itemrefRegex = Regex("<itemref[^>]+idref=\"([^\"]+)\"")
+                            itemrefRegex.findAll(spineMatch.value).forEach { match ->
+                                val idref = match.groupValues[1]
+                                val href = manifestMap[idref]
+                                if (href != null) {
+                                    chapterHrefs.add(href)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                val opfDir = if (opfPath.contains("/")) opfPath.substringBeforeLast("/") + "/" else ""
+
+                val validHrefs = chapterHrefs
+                    .map { java.net.URLDecoder.decode(it, "UTF-8") }
+                    .filter { it.endsWith(".html", true) || it.endsWith(".xhtml", true) || it.endsWith(".htm", true) }
+
+                val entries = if (validHrefs.isNotEmpty()) {
+                    validHrefs.mapNotNull { href -> 
+                        val fullPath = opfDir + href
+                        zip.getEntry(fullPath) ?: zip.getEntry(href) ?: zip.entries().asSequence().find { it.name.endsWith(href) }
+                    }
+                } else {
+                    zip.entries().asSequence()
+                        .filter { it.name.endsWith(".html", true) || it.name.endsWith(".xhtml", true) || it.name.endsWith(".htm", true) }
+                        .sortedBy { it.name }
+                        .toList()
+                }
                 
                 for ((index, entry) in entries.withIndex()) {
                     val rawHtml = zip.getInputStream(entry).bufferedReader().readText()
@@ -42,6 +98,7 @@ object EpubParser {
             }
             return@withContext chapterCount
         } catch (e: Exception) {
+            com.example.LogKeeper.writeLog("EpubParser", android.util.Log.getStackTraceString(e))
             e.printStackTrace()
             return@withContext -1
         }
@@ -71,6 +128,7 @@ object EpubParser {
             }
             return@withContext chapterCount
         } catch (e: Exception) {
+            com.example.LogKeeper.writeLog("EpubParserTxt", android.util.Log.getStackTraceString(e))
             e.printStackTrace()
             return@withContext -1
         }
