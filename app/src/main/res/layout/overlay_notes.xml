@@ -57,10 +57,71 @@
             android:tint="#FFFFFF" />
     </RelativeLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/list_notes"
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:clipToPadding="false"
-        android:padding="8dp" />
+        android:layout_height="match_parent">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/list_notes"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:padding="8dp" />
+
+        <LinearLayout
+            android:id="@+id/note_editor_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:background="#151515"
+            android:padding="16dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:visibility="gone">
+
+            <EditText
+                android:id="@+id/et_note_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Title (Optional)"
+                android:inputType="textCapSentences"
+                android:singleLine="true"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#888888" />
+
+            <EditText
+                android:id="@+id/et_note_text"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:layout_marginTop="8dp"
+                android:gravity="top|start"
+                android:hint="Note text"
+                android:inputType="textMultiLine|textCapSentences"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#888888" />
+                
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="end"
+                android:layout_marginTop="16dp">
+                <Button
+                    android:id="@+id/btn_note_cancel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Cancel"
+                    style="?android:attr/buttonBarButtonStyle"
+                    android:textColor="#FFFFFF" />
+                <Button
+                    android:id="@+id/btn_note_save"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Save"
+                    style="?android:attr/buttonBarButtonStyle"
+                    android:textColor="#4CAF50" />
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
 </LinearLayout>

@@ -720,6 +720,18 @@ class FloatingReaderService : Service() {
                 switchScoped?.setOnCheckedChangeListener { _, isChecked ->
                     if (isChecked && !android.os.Environment.isExternalStorageManager()) {
                         switchScoped.isChecked = false
+                        try {
+                            val intent = Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                                data = android.net.Uri.parse("package:" + applicationContext.packageName)
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            startActivity(intent)
+                        } catch (e: Exception) {
+                            val intent = Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            startActivity(intent)
+                        }
                         showToast("Please grant All Files Access")
                         return@setOnCheckedChangeListener
                     }
@@ -1808,41 +1820,41 @@ class FloatingReaderService : Service() {
     }
     
     private fun showNoteDialog(note: com.example.data.QuickNote?) {
-        val dialogView = android.view.LayoutInflater.from(applicationContext).inflate(R.layout.dialog_quick_note, null)
-        val etTitle = dialogView.findViewById<android.widget.EditText>(R.id.et_note_title)
-        val etText = dialogView.findViewById<android.widget.EditText>(R.id.et_note_text)
+        val editorContainer = overlayNotes?.findViewById<View>(R.id.note_editor_container) ?: return
+        val etTitle = overlayNotes?.findViewById<android.widget.EditText>(R.id.et_note_title) ?: return
+        val etText = overlayNotes?.findViewById<android.widget.EditText>(R.id.et_note_text) ?: return
+        val btnSave = overlayNotes?.findViewById<android.widget.Button>(R.id.btn_note_save) ?: return
+        val btnCancel = overlayNotes?.findViewById<android.widget.Button>(R.id.btn_note_cancel) ?: return
         
         if (note != null) {
             etTitle.setText(note.title)
             etText.setText(note.text)
+        } else {
+            etTitle.setText("")
+            etText.setText("")
         }
         
-        val dialog = android.app.AlertDialog.Builder(applicationContext, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle(if (note == null) "New Note" else "Edit Note")
-            .setView(dialogView)
-            .setPositiveButton("Save") { _, _ ->
-                val title = etTitle.text.toString().trim()
-                val text = etText.text.toString().trim()
-                if (title.isNotEmpty() || text.isNotEmpty()) {
-                    serviceScope.launch(Dispatchers.IO) {
-                        val db = com.example.data.AppDatabase.getDatabase(this@FloatingReaderService)
-                        if (note == null) {
-                            db.quickNoteDao().insertNote(com.example.data.QuickNote(title = title, text = text))
-                        } else {
-                            db.quickNoteDao().updateNote(note.copy(title = title, text = text))
-                        }
+        editorContainer.visibility = View.VISIBLE
+        
+        btnSave.setOnClickListener {
+            val title = etTitle.text.toString().trim()
+            val text = etText.text.toString().trim()
+            if (title.isNotEmpty() || text.isNotEmpty()) {
+                serviceScope.launch(Dispatchers.IO) {
+                    val db = com.example.data.AppDatabase.getDatabase(this@FloatingReaderService)
+                    if (note == null) {
+                        db.quickNoteDao().insertNote(com.example.data.QuickNote(title = title, text = text))
+                    } else {
+                        db.quickNoteDao().updateNote(note.copy(title = title, text = text))
                     }
                 }
             }
-            .setNegativeButton("Cancel", null)
-            .create()
-            
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            dialog.window?.setType(android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
-        } else {
-            dialog.window?.setType(android.view.WindowManager.LayoutParams.TYPE_PHONE)
+            editorContainer.visibility = View.GONE
         }
-        dialog.show()
+        
+        btnCancel.setOnClickListener {
+            editorContainer.visibility = View.GONE
+        }
     }
     
     private inner class NotesAdapter : androidx.recyclerview.widget.RecyclerView.Adapter<NotesAdapter.NoteViewHolder>() {
