@@ -244,7 +244,7 @@ class FloatingReaderService : Service() {
                                 } else {
                                     val isVisible = toolbarContainer.visibility == View.VISIBLE
                                     toolbarContainer.visibility = if (isVisible) View.GONE else View.VISIBLE
-                                    bottomWindowControls.visibility = if (isVisible && !isFullScreen) View.VISIBLE else View.GONE
+                                    updateBottomControlsVisibility()
                                 }
                             }
                         }
@@ -277,22 +277,6 @@ class FloatingReaderService : Service() {
         
         // Initialize XML overlays
         // Search & Bookmarks are initialized on demand
-
-        floatingView.findViewById<View>(R.id.fab_add_book)?.setOnClickListener {
-            val intent = Intent(this@FloatingReaderService, com.example.MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                putExtra("PICK_EPUB", true)
-            }
-            try { startActivity(intent) } catch (e: Exception) { AppLogger.d("Service", "Failed to start library import: ${e.message}") }
-        }
-        
-        floatingView.findViewById<View>(R.id.fab_continue)?.setOnClickListener {
-            val lastBook = prefs.getInt("last_book_id", -1)
-            if (lastBook != -1) {
-                loadBook(lastBook)
-            }
-            hideOverlays()
-        }
 
         startAutoSaveTimer()
         
@@ -344,6 +328,12 @@ class FloatingReaderService : Service() {
         }
     }
 
+    private fun syncWindowStates() {
+        updateTopDragBarVisibility()
+        updateBottomControlsVisibility()
+        updateWindowFocusAbility()
+    }
+    
     private fun hideOverlays() {
         overlayLibrary?.visibility = View.GONE
         overlayChapters?.visibility = View.GONE
@@ -353,7 +343,44 @@ class FloatingReaderService : Service() {
         overlaySearch?.visibility = View.GONE
         overlaySearchResults?.visibility = View.GONE
         scrollView.visibility = View.VISIBLE
-        updateTopDragBarVisibility()
+        syncWindowStates()
+    }
+    
+    private fun updateBottomControlsVisibility() {
+        if (!::bottomWindowControls.isInitialized) return
+        
+        if (isFullScreen) {
+            bottomWindowControls.visibility = View.GONE
+            return
+        }
+        
+        val isAnyOverlayVisible = (overlayLibrary?.visibility == View.VISIBLE ||
+                overlayChapters?.visibility == View.VISIBLE ||
+                overlaySettings?.visibility == View.VISIBLE ||
+                overlayBookmarks?.visibility == View.VISIBLE ||
+                overlayNotes?.visibility == View.VISIBLE ||
+                overlaySearch?.visibility == View.VISIBLE ||
+                overlaySearchResults?.visibility == View.VISIBLE)
+                
+        if (!isAnyOverlayVisible && toolbarContainer.visibility == View.VISIBLE) {
+            bottomWindowControls.visibility = View.GONE
+        } else {
+            bottomWindowControls.visibility = View.VISIBLE
+        }
+    }
+    
+    private fun updateWindowFocusAbility() {
+        val searchVisible = overlaySearch?.visibility == View.VISIBLE || 
+            (overlayNotes?.findViewById<View>(R.id.note_editor_container)?.visibility == View.VISIBLE)
+            
+        if (searchVisible) {
+            layoutParams.flags = layoutParams.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+        } else {
+            layoutParams.flags = layoutParams.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+        }
+        if (this::windowManager.isInitialized && floatingView.parent != null) {
+            windowManager.updateViewLayout(floatingView, layoutParams)
+        }
     }
 
     private fun updateTopDragBarVisibility() {
@@ -478,17 +505,22 @@ class FloatingReaderService : Service() {
             btnImported.text = "Imported"
         }
 
+        val fabAddBook = floatingView.findViewById<View>(R.id.fab_add_book)
+
         if (currentLibraryTab == "Recent") {
             btnRecent.setTextColor(android.graphics.Color.WHITE)
             btnImported.setTextColor(android.graphics.Color.GRAY)
             barExplorerTools?.visibility = View.GONE
+            fabAddBook?.visibility = View.GONE
         } else {
             btnRecent.setTextColor(android.graphics.Color.GRAY)
             btnImported.setTextColor(android.graphics.Color.WHITE)
             if (useScopedDir) {
                 barExplorerTools?.visibility = View.VISIBLE
+                fabAddBook?.visibility = View.GONE
             } else {
                 barExplorerTools?.visibility = View.GONE
+                fabAddBook?.visibility = View.VISIBLE
             }
         }
 
@@ -552,6 +584,22 @@ class FloatingReaderService : Service() {
             if (stub != null) {
                 overlayLibrary = stub.inflate()
                 listLibrary = floatingView.findViewById(R.id.list_library)
+                
+                floatingView.findViewById<View>(R.id.fab_add_book)?.setOnClickListener {
+                    val intent = Intent(this@FloatingReaderService, com.example.MainActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        putExtra("PICK_EPUB", true)
+                    }
+                    try { startActivity(intent) } catch (e: Exception) { AppLogger.d("Service", "Failed to start library import: ${e.message}") }
+                }
+                
+                floatingView.findViewById<View>(R.id.fab_continue)?.setOnClickListener {
+                    val lastBook = prefs.getInt("last_book_id", -1)
+                    if (lastBook != -1) {
+                        loadBook(lastBook)
+                    }
+                    hideOverlays()
+                }
 
                 val gestureDetector = android.view.GestureDetector(this, object : android.view.GestureDetector.SimpleOnGestureListener() {
                     override fun onFling(e1: android.view.MotionEvent?, e2: android.view.MotionEvent, velocityX: Float, velocityY: Float): Boolean {
@@ -640,7 +688,7 @@ class FloatingReaderService : Service() {
         scrollView.visibility = View.GONE
         toolbarContainer.visibility = View.GONE
         tvWindowTitle.text = "Library"
-        updateTopDragBarVisibility()
+        syncWindowStates()
         
         loadLibraryBooks()
     }
@@ -670,6 +718,7 @@ class FloatingReaderService : Service() {
             listChapters?.adapter = ChapterAdapter(count)
             listChapters?.scrollToPosition(currentChapterIndex)
         }
+        syncWindowStates()
     }
 
     private fun inflateSettingsIfNeeded() {
@@ -683,6 +732,7 @@ class FloatingReaderService : Service() {
                 
                 floatingView.findViewById<android.view.View>(R.id.btn_settings_back)?.setOnClickListener {
                     overlaySettings?.visibility = View.GONE
+                    syncWindowStates()
                 }
                 floatingView.findViewById<android.widget.Button>(R.id.btn_backup_data)?.setOnClickListener {
                     showToast("Backup (No Books) saved to Downloads.")
@@ -777,9 +827,11 @@ class FloatingReaderService : Service() {
 
     private fun openSettingsView() {
         inflateSettingsIfNeeded()
+        hideOverlays()
         overlaySettings?.visibility = View.VISIBLE
         toolbarContainer.visibility = View.GONE
-        updateTopDragBarVisibility()
+        tvWindowTitle.text = "Settings"
+        syncWindowStates()
     }
 
     private fun openNotesView() {
@@ -789,7 +841,7 @@ class FloatingReaderService : Service() {
         overlayNotes?.visibility = View.VISIBLE
         toolbarContainer.visibility = View.GONE
         loadNotes()
-        updateTopDragBarVisibility()
+        syncWindowStates()
     }
 
     private fun inflateBookmarksIfNeeded() {
@@ -803,6 +855,7 @@ class FloatingReaderService : Service() {
                 
                 floatingView.findViewById<android.view.View>(R.id.btn_bookmarks_back)?.setOnClickListener {
                     overlayBookmarks?.visibility = View.GONE
+                    syncWindowStates()
                 }
                 
                 floatingView.findViewById<android.view.View>(R.id.btn_add_bookmark)?.setOnClickListener {
@@ -845,6 +898,7 @@ class FloatingReaderService : Service() {
         floatingView.findViewById<View>(R.id.btn_close_search)?.setOnClickListener {
             overlaySearch?.visibility = View.GONE
             overlaySearchResults?.visibility = View.GONE
+            syncWindowStates()
         }
         
         floatingView.findViewById<View>(R.id.btn_do_search)?.setOnClickListener {
@@ -867,6 +921,7 @@ class FloatingReaderService : Service() {
         floatingView.findViewById<View>(R.id.btn_close_search_results)?.setOnClickListener {
             overlaySearchResults?.visibility = View.GONE
             searchJob?.cancel()
+            syncWindowStates()
         }
 
         floatingView.findViewById<View>(R.id.btn_do_search_full)?.setOnClickListener {
@@ -879,11 +934,12 @@ class FloatingReaderService : Service() {
 
     private fun openBookmarksView() {
         inflateBookmarksIfNeeded()
+        hideOverlays()
         overlayBookmarks?.visibility = View.VISIBLE
         toolbarContainer.visibility = View.GONE
         listBookmarks?.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
         listBookmarks?.adapter = BookmarkAdapter()
-        updateTopDragBarVisibility()
+        syncWindowStates()
     }
 
     private fun setupListeners() {
@@ -1022,10 +1078,11 @@ class FloatingReaderService : Service() {
         }
         floatingView.findViewById<View>(R.id.btn_search).setOnClickListener {
             inflateSearchIfNeeded()
-            hideOverlays()
             val isSearchVisible = overlaySearch?.visibility == View.VISIBLE
+            hideOverlays()
             overlaySearch?.visibility = if (isSearchVisible) View.GONE else View.VISIBLE
             toolbarContainer.visibility = View.GONE
+            syncWindowStates()
         }
         
         val seekProgress = floatingView.findViewById<SeekBar>(R.id.seek_progress)
@@ -1772,7 +1829,7 @@ class FloatingReaderService : Service() {
                     scrollView.visibility = View.VISIBLE
                     toolbarContainer.visibility = View.VISIBLE
                 }
-                updateTopDragBarVisibility()
+                syncWindowStates()
             }
         }
         
@@ -1835,6 +1892,7 @@ class FloatingReaderService : Service() {
         }
         
         editorContainer.visibility = View.VISIBLE
+        syncWindowStates()
         
         btnSave.setOnClickListener {
             val title = etTitle.text.toString().trim()
@@ -1850,10 +1908,12 @@ class FloatingReaderService : Service() {
                 }
             }
             editorContainer.visibility = View.GONE
+            syncWindowStates()
         }
         
         btnCancel.setOnClickListener {
             editorContainer.visibility = View.GONE
+            syncWindowStates()
         }
     }
     

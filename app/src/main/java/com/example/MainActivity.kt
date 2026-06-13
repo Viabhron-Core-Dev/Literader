@@ -150,6 +150,32 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun WelcomeScreen(onContinue: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+    
+    // Check permission state in case they just returned from Settings
+    var hasManageStorage by remember { 
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) 
+                android.os.Environment.isExternalStorageManager() 
+            else true
+        )
+    }
+
+    // Default to true as requested, but visual switch depends on permission
+    var useExplorerMode by remember { mutableStateOf(hasManageStorage) }
+
+    // Launch settings if they toggle it on without permission
+    val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        hasManageStorage = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) 
+            android.os.Environment.isExternalStorageManager() 
+        else true
+        
+        useExplorerMode = hasManageStorage
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -175,16 +201,63 @@ fun WelcomeScreen(onContinue: () -> Unit) {
         Spacer(modifier = Modifier.height(16.dp))
         
         Text(
-            text = "Read EPUBs and TXT files smoothly in a floating bubble while using other apps. When you are ready, tap below to launch the overlay.",
+            text = "Read EPUBs and TXT files smoothly in a floating bubble while using other apps.",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(32.dp))
+        
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("File Explorer Mode", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Browse all folders for books directly.", 
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = useExplorerMode,
+                    onCheckedChange = { checked ->
+                        if (checked && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !android.os.Environment.isExternalStorageManager()) {
+                            try {
+                                val intent = Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                                    data = android.net.Uri.parse("package:" + context.packageName)
+                                }
+                                launcher.launch(intent)
+                            } catch (e: Exception) {
+                                val intent = Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                                launcher.launch(intent)
+                            }
+                        } else {
+                            useExplorerMode = checked
+                        }
+                    }
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(32.dp))
         
         Button(
-            onClick = onContinue,
+            onClick = {
+                prefs.edit()
+                    .putBoolean("use_scoped_dir", useExplorerMode)
+                    .putString("last_library_tab", "Imported")
+                    .apply()
+                onContinue()
+            },
             modifier = Modifier.fillMaxWidth().height(56.dp)
         ) {
             Text("Continue", style = MaterialTheme.typography.titleMedium)
