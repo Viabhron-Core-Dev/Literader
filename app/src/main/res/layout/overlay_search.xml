@@ -7,6 +7,7 @@
     android:background="#E6222222"
     android:gravity="center_vertical"
     android:padding="8dp">
+
     <EditText
         android:id="@+id/et_search"
         android:layout_width="0dp"
@@ -17,6 +18,7 @@
         android:textColor="#FFFFFF"
         android:backgroundTint="#888888"
         android:singleLine="true" />
+
     <Button
         android:id="@+id/btn_do_search"
         android:layout_width="wrap_content"
@@ -25,6 +27,7 @@
         android:minWidth="0dp"
         android:paddingHorizontal="12dp"
         android:layout_marginStart="4dp" />
+
     <Button
         android:id="@+id/btn_do_search_full"
         android:layout_width="wrap_content"
@@ -33,6 +36,7 @@
         android:minWidth="0dp"
         android:paddingHorizontal="12dp"
         android:layout_marginStart="4dp" />
+
     <ImageView
         android:id="@+id/btn_close_search"
         android:layout_width="32dp"

@@ -128,63 +128,64 @@
                     android:tint="#FFFFFF"/>
             </LinearLayout>
 
-            <!-- Container for Chapter List Overlay (Hidden by Default) -->
+            <!-- Container for Chapter List Overlay (Inflated on Demand) -->
             <ViewStub
                 android:id="@+id/stub_overlay_chapters"
                 android:inflatedId="@+id/overlay_chapters"
-                android:layout="@layout/layout_overlay_chapters"
                 android:layout_width="200dp"
                 android:layout_height="match_parent"
-                android:layout_gravity="start" />
+                android:layout_gravity="start"
+                android:layout="@layout/overlay_chapters" />
 
-            <!-- Container for Library Overlay (Hidden by Default) -->
+            <!-- Container for Library Overlay (Inflated on Demand) -->
             <ViewStub
                 android:id="@+id/stub_overlay_library"
                 android:inflatedId="@+id/overlay_library"
-                android:layout="@layout/layout_overlay_library"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent" />
+                android:layout_height="match_parent"
+                android:layout="@layout/overlay_library" />
 
-            <!-- Container for Settings Overlay (Hidden by Default) -->
+            <!-- Container for Settings Overlay (Inflated on Demand) -->
             <ViewStub
                 android:id="@+id/stub_overlay_settings"
                 android:inflatedId="@+id/overlay_settings"
-                android:layout="@layout/layout_overlay_settings"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent" />
+                android:layout_height="match_parent"
+                android:layout="@layout/overlay_settings" />
 
-            <!-- Bookmarks View -->
+            <!-- Bookmarks View (Inflated on Demand) -->
             <ViewStub
                 android:id="@+id/stub_overlay_bookmarks"
                 android:inflatedId="@+id/overlay_bookmarks"
-                android:layout="@layout/layout_overlay_bookmarks"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent" />
+                android:layout_height="match_parent"
+                android:layout="@layout/overlay_bookmarks" />
 
-            <!-- Search Overlay -->
+            <!-- Search Overlay (Inflated on Demand) -->
             <ViewStub
                 android:id="@+id/stub_overlay_search"
                 android:inflatedId="@+id/overlay_search"
-                android:layout="@layout/layout_overlay_search"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_gravity="top" />
+                android:layout_gravity="top"
+                android:layout="@layout/overlay_search" />
 
-            <!-- Search Results View -->
+            <!-- Search Results View (Inflated on Demand) -->
             <ViewStub
                 android:id="@+id/stub_overlay_search_results"
                 android:inflatedId="@+id/overlay_search_results"
-                android:layout="@layout/layout_overlay_search_results"
                 android:layout_width="match_parent"
                 android:layout_height="400dp"
-                android:layout_gravity="bottom" />
+                android:layout_gravity="bottom"
+                android:layout="@layout/overlay_search_results" />
 
+            <!-- Quick Notes View (Inflated on Demand) -->
             <ViewStub
                 android:id="@+id/stub_overlay_notes"
                 android:inflatedId="@+id/overlay_notes"
-                android:layout="@layout/layout_overlay_notes"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent" />
+                android:layout_height="match_parent"
+                android:layout="@layout/overlay_notes" />
 
             <!-- Toggleable Toolbar (Moonreader style) -->
             <LinearLayout

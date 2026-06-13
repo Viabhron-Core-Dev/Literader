@@ -1,0 +1,771 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- FOLDED STATE (BUBBLE) -->
+    <TextView
+        android:id="@+id/bubble_icon"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:background="@drawable/ic_bubble_round"
+        android:text="v"
+        android:textSize="20sp"
+        android:textColor="#9C27B0"
+        android:alpha="0.3"
+        android:gravity="center"
+        android:elevation="8dp"
+        android:includeFontPadding="false"
+        android:paddingBottom="2dp"
+        android:visibility="visible" />
+
+    <!-- EXPANDED STATE (WINDOW) -->
+    <LinearLayout
+        android:id="@+id/window_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@drawable/bg_floating_window"
+        android:clipToOutline="true"
+        android:visibility="gone">
+
+            <LinearLayout
+                android:id="@+id/top_drag_bar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="28dp"
+                android:background="#151515"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingEnd="12dp">
+            <TextView
+                android:id="@+id/tv_window_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:paddingStart="12dp"
+                android:textColor="#AAAAAA"
+                android:textSize="14sp"
+                android:maxLines="2"
+                android:ellipsize="end"
+                android:text="VianReader" />
+            <ImageButton
+                android:id="@+id/btn_top_notes"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:background="@android:color/transparent"
+                android:scaleType="fitCenter"
+                android:src="@android:drawable/ic_menu_edit"
+                android:tint="#AAAAAA"
+                android:layout_gravity="center_vertical"
+                android:contentDescription="Quick Notes" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <!-- Main text content -->
+            <ScrollView
+                android:id="@+id/scroll_view"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:fillViewport="true">
+                <TextView
+                    android:id="@+id/tv_content"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="16dp"
+                    android:paddingBottom="48dp"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:textColor="#DDDDDD"
+                    android:textSize="18sp"
+                    android:lineSpacingExtra="6dp"
+                    android:textIsSelectable="true"
+                    android:text="Loading..."/>
+            </ScrollView>
+
+            <!-- Bottom window controls moved to end of FrameLayout to draw over overlays -->
+
+            <LinearLayout
+                android:id="@+id/custom_selection_menu"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top|center_horizontal"
+                android:layout_marginTop="48dp"
+                android:background="#E0333333"
+                android:orientation="horizontal"
+                android:padding="4dp"
+                android:visibility="gone"
+                android:elevation="8dp">
+
+                <ImageView
+                    android:id="@+id/btn_copy_text"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_content_copy"
+                    android:contentDescription="Copy"
+                    android:tint="#FFFFFF"/>
+                <ImageView
+                    android:id="@+id/btn_share_text"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:padding="8dp"
+                    android:src="@android:drawable/ic_menu_share"
+                    android:contentDescription="Share"
+                    android:tint="#FFFFFF"/>
+                <ImageView
+                    android:id="@+id/btn_close_selection"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:padding="8dp"
+                    android:src="@android:drawable/ic_menu_close_clear_cancel"
+                    android:contentDescription="Close"
+                    android:tint="#FFFFFF"/>
+            </LinearLayout>
+
+            <!-- Container for Chapter List Overlay (Hidden by Default) -->
+            <FrameLayout
+                android:id="@+id/overlay_chapters"
+                android:layout_width="200dp"
+                android:layout_height="match_parent"
+                android:layout_gravity="start"
+                android:background="#E6222222"
+                android:elevation="8dp"
+                android:clickable="true"
+                android:visibility="gone">
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/list_chapters"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipToPadding="false"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"/>
+            </FrameLayout>
+
+            <!-- Container for Library Overlay (Hidden by Default) -->
+            <LinearLayout
+                android:id="@+id/overlay_library"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:background="#222222"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:id="@+id/library_header"
+                    android:layout_width="match_parent"
+                    android:layout_height="38dp"
+                    android:orientation="horizontal"
+                    android:background="#151515"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="16dp">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Library"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="#FFFFFF" />
+                        
+                    <ImageButton
+                        android:id="@+id/btn_library_tracker"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:background="@android:color/transparent"
+                        android:src="@drawable/ic_fab_tracker_game"
+                        android:scaleType="fitCenter"
+                        android:layout_marginEnd="16dp" />
+                        
+                    <ImageButton
+                        android:id="@+id/btn_library_notes"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:background="@android:color/transparent"
+                        android:src="@android:drawable/ic_menu_edit"
+                        android:tint="#FFFFFF"
+                        android:scaleType="fitCenter"
+                        android:layout_marginEnd="16dp" />
+                        
+                    <ImageButton
+                        android:id="@+id/btn_library_settings"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:background="@android:color/transparent"
+                        android:src="@android:drawable/ic_menu_preferences"
+                        android:scaleType="fitCenter" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="36dp"
+                    android:orientation="horizontal"
+                    android:background="#111111">
+                    <Button
+                        android:id="@+id/btn_tab_recent"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:text="Recent"
+                        android:textColor="#FFFFFF"
+                        android:textSize="13sp"
+                        android:padding="0dp"
+                        android:minHeight="0dp"
+                        style="?android:attr/borderlessButtonStyle" />
+                    <Button
+                        android:id="@+id/btn_tab_imported"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:text="Imported"
+                        android:textColor="#FFFFFF"
+                        android:textSize="13sp"
+                        android:padding="0dp"
+                        android:minHeight="0dp"
+                        style="?android:attr/borderlessButtonStyle" />
+                </LinearLayout>
+
+                <!-- Sorting and up navigation for File Explorer -->
+                <LinearLayout
+                    android:id="@+id/bar_explorer_tools"
+                    android:layout_width="match_parent"
+                    android:layout_height="36dp"
+                    android:orientation="horizontal"
+                    android:background="#151515"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="4dp"
+                    android:gravity="center_vertical"
+                    android:visibility="gone">
+                    <ImageButton
+                        android:id="@+id/btn_explorer_up"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:background="?android:attr/selectableItemBackground"
+                        android:src="@drawable/ic_arrow_back"
+                        android:tint="#FFFFFF"
+                        android:visibility="gone" />
+                    <TextView
+                        android:id="@+id/tv_explorer_path"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="8dp"
+                        android:layout_gravity="center_vertical"
+                        android:textColor="#AAAAAA"
+                        android:textSize="14sp"
+                        android:singleLine="true"
+                        android:ellipsize="start" />
+                    <Button
+                        android:id="@+id/btn_sort_type"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:text="Name"
+                        android:textSize="12sp"
+                        android:textColor="#FFFFFF"
+                        android:background="?android:attr/selectableItemBackground" />
+                    <ImageButton
+                        android:id="@+id/btn_sort_order"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:background="?android:attr/selectableItemBackground"
+                        android:src="@android:drawable/arrow_down_float"
+                        android:tint="#FFFFFF" />
+                </LinearLayout>
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent">
+                    
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/list_library"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:clipToPadding="false"
+                        android:paddingTop="8dp"
+                        android:paddingBottom="96dp"/>
+                        
+                    <!-- Bottom Right FABs purely floating over list -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_gravity="bottom|end"
+                        android:layout_marginEnd="16dp"
+                        android:layout_marginBottom="16dp"
+                        android:gravity="center">
+                        <ImageButton
+                            android:id="@+id/fab_continue"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:layout_marginBottom="8dp"
+                            android:background="@android:color/transparent"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/ic_fab_continue_game" />
+                        <ImageButton
+                            android:id="@+id/fab_add_book"
+                            android:layout_width="56dp"
+                            android:layout_height="56dp"
+                            android:background="@android:color/transparent"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/ic_fab_add_game" />
+                    </LinearLayout>
+                </FrameLayout>
+            </LinearLayout>
+
+            <!-- Container for Settings Overlay (Hidden by Default) -->
+            <FrameLayout
+                android:id="@+id/overlay_settings"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#DD111111"
+                android:visibility="gone">
+                <ScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+                        
+                        <LinearLayout
+                            android:id="@+id/settings_header"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="16dp">
+                            <ImageButton
+                                android:id="@+id/btn_settings_back"
+                                android:layout_width="32dp"
+                                android:layout_height="32dp"
+                                android:background="@android:color/transparent"
+                                android:src="@drawable/ic_arrow_back"
+                                android:tint="#FFFFFF"
+                                android:scaleType="fitCenter" />
+                            <TextView 
+                                android:layout_width="wrap_content" 
+                                android:layout_height="wrap_content" 
+                                android:text="Settings" 
+                                android:textColor="#FFF" 
+                                android:textSize="20sp" 
+                                android:textStyle="bold"
+                                android:layout_marginStart="16dp"/>
+                        </LinearLayout>
+                        
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Font Size" android:textColor="#CCC" android:layout_marginTop="8dp"/>
+                        <SeekBar android:id="@+id/seek_font_size" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="40" android:progress="18" android:paddingTop="8dp" android:paddingBottom="16dp"/>
+                        
+                        <Switch android:id="@+id/switch_bookmarks" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Enable Bookmarks UI" android:textColor="#CCC" android:paddingVertical="8dp"/>
+                        <Switch android:id="@+id/switch_theme" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Light Theme" android:textColor="#CCC" android:paddingVertical="8dp"/>
+                        
+                        <Switch android:id="@+id/switch_keep_screen_on" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Keep Screen On" android:textColor="#CCC" android:paddingVertical="8dp"/>
+                        
+                        <Switch android:id="@+id/switch_scoped_dir" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Enable Full File Explorer" android:textColor="#CCC" android:paddingVertical="8dp"/>
+                        
+                        <Button android:id="@+id/btn_backup_data" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Backup App Data (No Books)" android:layout_marginTop="16dp"/>
+                        <Button android:id="@+id/btn_backup_data_books" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Backup App Data (With Books)" android:layout_marginTop="8dp"/>
+                        <Button android:id="@+id/btn_restore_data" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Restore App Data" android:layout_marginTop="8dp"/>
+                        
+                        <Button android:id="@+id/btn_export_logs" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Export Logs" android:layout_marginTop="24dp"/>
+                    </LinearLayout>
+                </ScrollView>
+            </FrameLayout>
+
+            <!-- Bookmarks View -->
+            <FrameLayout
+                android:id="@+id/overlay_bookmarks"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#DD111111"
+                android:visibility="gone">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical">
+                    
+                    <LinearLayout
+                        android:id="@+id/bookmarks_header"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:background="#151515"
+                        android:padding="8dp">
+
+                        <ImageView
+                            android:id="@+id/btn_bookmarks_back"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:src="@drawable/ic_arrow_back"
+                            android:tint="#FFFFFF"
+                            android:padding="4dp" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="wrap_content"
+                            android:text="Bookmarks" 
+                            android:textColor="#FFF" 
+                            android:textSize="20sp" 
+                            android:textStyle="bold"
+                            android:layout_marginStart="16dp"/>
+                            
+                        <Button
+                            android:id="@+id/btn_add_bookmark"
+                            android:layout_width="wrap_content"
+                            android:layout_height="40dp"
+                            android:text="Add"
+                            android:textSize="12sp"
+                            android:padding="8dp" />
+                    </LinearLayout>
+                    
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/list_bookmarks"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
+                        android:padding="8dp" />
+                </LinearLayout>
+            </FrameLayout>
+
+            <!-- Search Overlay -->
+            <LinearLayout
+                android:id="@+id/overlay_search"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top"
+                android:orientation="horizontal"
+                android:background="#E6222222"
+                android:gravity="center_vertical"
+                android:padding="8dp"
+                android:visibility="gone">
+                <EditText
+                    android:id="@+id/et_search"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:hint="Search..."
+                    android:textColorHint="#888888"
+                    android:textColor="#FFFFFF"
+                    android:backgroundTint="#888888"
+                    android:singleLine="true" />
+                <Button
+                    android:id="@+id/btn_do_search"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Chap"
+                    android:minWidth="0dp"
+                    android:paddingHorizontal="12dp"
+                    android:layout_marginStart="4dp" />
+                <Button
+                    android:id="@+id/btn_do_search_full"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Full"
+                    android:minWidth="0dp"
+                    android:paddingHorizontal="12dp"
+                    android:layout_marginStart="4dp" />
+                <ImageView
+                    android:id="@+id/btn_close_search"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="8dp"
+                    android:padding="6dp"
+                    android:src="@android:drawable/ic_menu_close_clear_cancel"
+                    android:tint="#FFFFFF" />
+            </LinearLayout>
+
+            <!-- Search Results View -->
+            <FrameLayout
+                android:id="@+id/overlay_search_results"
+                android:layout_width="match_parent"
+                android:layout_height="400dp"
+                android:layout_gravity="bottom"
+                android:background="#E6222222"
+                android:visibility="gone">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:background="#111111"
+                        android:padding="8dp"
+                        android:gravity="center_vertical">
+                        <TextView
+                            android:id="@+id/tv_search_status"
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="wrap_content"
+                            android:textColor="#FFFFFF"
+                            android:text="Searching..."
+                            android:textStyle="bold"/>
+                        <ImageView
+                            android:id="@+id/btn_close_search_results"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:padding="4dp"
+                            android:src="@android:drawable/ic_menu_close_clear_cancel"
+                            android:tint="#FFFFFF" />
+                    </LinearLayout>
+                    <ScrollView
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1">
+                        <LinearLayout
+                            android:id="@+id/ll_search_results"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="8dp" />
+                    </ScrollView>
+                </LinearLayout>
+            </FrameLayout>
+
+            <LinearLayout
+                android:id="@+id/overlay_notes"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#151515"
+                android:orientation="vertical"
+                android:visibility="gone">
+                <RelativeLayout
+                    android:id="@+id/notes_header"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="8dp"
+                    android:background="#2A2A2A">
+                    <ImageButton
+                        android:id="@+id/btn_notes_back"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_alignParentStart="true"
+                        android:layout_centerVertical="true"
+                        android:background="?android:attr/selectableItemBackgroundBorderless"
+                        android:src="@android:drawable/ic_media_previous"
+                        android:tint="#FFFFFF" />
+                    <TextView
+                        android:id="@+id/tv_notes_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_toEndOf="@id/btn_notes_back"
+                        android:layout_centerVertical="true"
+                        android:layout_marginStart="16dp"
+                        android:text="Quick Notes"
+                        android:textColor="#FFFFFF"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+                    <ImageButton
+                        android:id="@+id/btn_notes_delete"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_toStartOf="@id/btn_notes_add"
+                        android:layout_centerVertical="true"
+                        android:layout_marginEnd="16dp"
+                        android:background="?android:attr/selectableItemBackgroundBorderless"
+                        android:src="@android:drawable/ic_menu_delete"
+                        android:tint="#FFFFFF"
+                        android:visibility="gone" />
+                    <ImageButton
+                        android:id="@+id/btn_notes_add"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:background="?android:attr/selectableItemBackgroundBorderless"
+                        android:src="@android:drawable/ic_menu_add"
+                        android:tint="#FFFFFF" />
+                </RelativeLayout>
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/list_notes"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipToPadding="false"
+                    android:padding="8dp" />
+            </LinearLayout>
+
+            <!-- Toggleable Toolbar (Moonreader style) -->
+            <LinearLayout
+                android:id="@+id/toolbar_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:orientation="vertical"
+                android:background="#E6111111"
+                android:visibility="gone">
+
+                <!-- Thin Line Progress bar -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingTop="2dp"
+                    android:paddingBottom="2dp"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="4dp">
+                    
+                    <ImageView android:id="@+id/btn_prev"
+                        android:layout_width="24dp" android:layout_height="24dp" android:padding="4dp"
+                        android:src="@android:drawable/ic_media_previous" android:tint="#AAAAAA" />
+                        
+                    <TextView
+                        android:id="@+id/tv_progress"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="#FFFFFF"
+                        android:textSize="10sp"
+                        android:textStyle="bold"
+                        android:layout_marginStart="2dp"
+                        android:layout_marginEnd="2dp"
+                        android:text="82%" />
+                    
+                    <SeekBar
+                        android:id="@+id/seek_progress"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:minHeight="4dp"
+                        android:maxHeight="4dp"
+                        android:thumbTint="#00000000"
+                        android:paddingStart="0dp"
+                        android:paddingEnd="0dp"
+                        android:progressDrawable="@android:drawable/progress_horizontal"
+                        android:progressTint="#7FE9F9"/>
+                        
+                    <ImageView android:id="@+id/btn_next"
+                        android:layout_width="24dp" android:layout_height="24dp" android:padding="4dp"
+                        android:layout_marginStart="2dp"
+                        android:src="@android:drawable/ic_media_next" android:tint="#AAAAAA" />
+                </LinearLayout>
+
+                <!-- Below buttons: Compact set of main actions -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:paddingTop="2dp"
+                    android:paddingBottom="2dp">
+
+                    <ImageView android:id="@+id/btn_library"
+                        android:layout_width="0dp" android:layout_weight="1" android:layout_height="32dp" android:padding="6dp"
+                        android:src="@drawable/ic_library_books" android:tint="#FFFFFF"
+                        android:contentDescription="Library" />
+
+                    <ImageView android:id="@+id/btn_chapters"
+                        android:layout_width="0dp" android:layout_weight="1" android:layout_height="32dp" android:padding="6dp"
+                        android:src="@drawable/ic_chapters_list" android:tint="#FFFFFF"
+                        android:contentDescription="Chapter List" />
+
+                    <ImageView android:id="@+id/btn_bookmarks"
+                        android:layout_width="0dp" android:layout_weight="1" android:layout_height="32dp" android:padding="6dp"
+                        android:src="@drawable/ic_bookmark_ribbon" android:tint="#FFFFFF"
+                        android:contentDescription="Bookmarks" />
+
+                    <ImageView android:id="@+id/btn_tts"
+                        android:layout_width="0dp" android:layout_weight="1" android:layout_height="32dp" android:padding="6dp"
+                        android:src="@android:drawable/ic_lock_silent_mode_off" android:tint="#FFFFFF"
+                        android:contentDescription="TTS" />
+
+                    <ImageView android:id="@+id/btn_auto_scroll"
+                        android:layout_width="0dp" android:layout_weight="1" android:layout_height="32dp" android:padding="6dp"
+                        android:src="@drawable/ic_auto_scroll" android:tint="#FFFFFF"
+                        android:contentDescription="Auto Scroll" />
+
+                    <ImageView android:id="@+id/btn_search"
+                        android:layout_width="0dp" android:layout_weight="1" android:layout_height="32dp" android:padding="6dp"
+                        android:src="@android:drawable/ic_menu_search" android:tint="#FFFFFF"
+                        android:contentDescription="Search" />
+
+                    <ImageView android:id="@+id/btn_settings"
+                        android:layout_width="0dp" android:layout_weight="1" android:layout_height="32dp" android:padding="6dp"
+                        android:src="@drawable/ic_settings_cog" android:tint="#FFFFFF"
+                        android:contentDescription="Settings" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/fullscreen_close_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="end|center_vertical"
+                    android:padding="8dp"
+                    android:visibility="gone">
+                    <ImageView android:id="@+id/btn_close_fullscreen"
+                        android:layout_width="32dp" android:layout_height="32dp"
+                        android:padding="4dp" android:src="@android:drawable/ic_menu_close_clear_cancel"
+                        android:tint="#F44336" android:background="?android:attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="Exit Fullscreen" />
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/bottom_window_controls"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|end"
+                android:orientation="horizontal"
+                android:background="#88000000"
+                android:padding="2dp"
+                android:elevation="10dp">
+                
+                <ImageView
+                    android:id="@+id/btn_exit_bottom"
+                    android:layout_width="32dp"
+                    android:layout_height="24dp"
+                    android:padding="4dp"
+                    android:backgroundTint="#F44336"
+                    android:src="@android:drawable/ic_menu_close_clear_cancel"
+                    android:tint="#FFFFFF" />
+                    
+                <Space android:layout_width="8dp" android:layout_height="wrap_content" />
+                
+                <ImageView
+                    android:id="@+id/btn_minimize_bottom"
+                    android:layout_width="32dp"
+                    android:layout_height="24dp"
+                    android:padding="4dp"
+                    android:backgroundTint="#4CAF50"
+                    android:src="@drawable/ic_minimize_window"
+                    android:tint="#FFFFFF" />
+                    
+                <Space android:layout_width="8dp" android:layout_height="wrap_content" />
+                
+                <ImageView
+                    android:id="@+id/resize_handle"
+                    android:layout_width="32dp"
+                    android:layout_height="24dp"
+                    android:padding="2dp"
+                    android:backgroundTint="#9E9E9E"
+                    android:src="@drawable/ic_resize_window"
+                    android:tint="#FFFFFF" />
+            </LinearLayout>
+        </FrameLayout>
+
+    </LinearLayout>
+
+    <!-- Custom In-App Toast layer -->
+    <TextView
+        android:id="@+id/tv_custom_toast"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="40dp"
+        android:background="#DD333333"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="8dp"
+        android:visibility="gone"
+        android:elevation="12dp" />
+
+</FrameLayout>
