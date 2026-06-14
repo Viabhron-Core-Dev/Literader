@@ -378,7 +378,9 @@ class FloatingReaderService : Service() {
     
     private fun updateWindowFocusAbility() {
         val searchVisible = overlaySearch?.visibility == View.VISIBLE || 
-            (overlayNotes?.findViewById<View>(R.id.note_editor_container)?.visibility == View.VISIBLE)
+            (overlayNotes?.findViewById<View>(R.id.note_editor_container)?.visibility == View.VISIBLE) ||
+            (floatingView.findViewById<View>(R.id.et_search_library)?.visibility == View.VISIBLE) ||
+            (floatingView.findViewById<View>(R.id.et_search_notes)?.visibility == View.VISIBLE)
             
         if (searchVisible) {
             layoutParams.flags = layoutParams.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
@@ -620,10 +622,12 @@ class FloatingReaderService : Service() {
                         etSearch.visibility = View.GONE
                         librarySearchQuery = ""
                         loadLibraryBooks()
+                        updateWindowFocusAbility()
                         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
                         imm.hideSoftInputFromWindow(etSearch.windowToken, 0)
                     } else {
                         etSearch?.visibility = View.VISIBLE
+                        updateWindowFocusAbility()
                         etSearch?.requestFocus()
                         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
                         imm.showSoftInput(etSearch, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
@@ -1872,10 +1876,12 @@ class FloatingReaderService : Service() {
                 etSearchNotes.visibility = View.GONE
                 notesSearchQuery = ""
                 loadNotes()
+                updateWindowFocusAbility()
                 val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
                 imm.hideSoftInputFromWindow(etSearchNotes.windowToken, 0)
             } else {
                 etSearchNotes?.visibility = View.VISIBLE
+                updateWindowFocusAbility()
                 etSearchNotes?.requestFocus()
                 val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
                 imm.showSoftInput(etSearchNotes, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
