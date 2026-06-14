@@ -57,6 +57,9 @@ class FloatingReaderService : Service() {
     private var initialTouchY = 0f
     private var foldedX = 0
     private var foldedY = 0
+    private var savedWindowX = 0
+    private var savedWindowY = 0
+    private var librarySearchQuery: String = ""
 
     private lateinit var prefs: SharedPreferences
     private var tts: TextToSpeech? = null
@@ -122,6 +125,10 @@ class FloatingReaderService : Service() {
         loadSettingsFromPrefs()
         savedWindowWidth = prefs.getInt("win_w", 800)
         savedWindowHeight = prefs.getInt("win_h", 1200)
+        savedWindowX = prefs.getInt("win_x", 0)
+        savedWindowY = prefs.getInt("win_y", 0)
+        foldedX = prefs.getInt("fold_x", 0)
+        foldedY = prefs.getInt("fold_y", 100)
         
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         setupFloatingView()
@@ -534,8 +541,10 @@ class FloatingReaderService : Service() {
                  currentExplorerDir = explorerStack.lastOrNull()
                  
                  val files = currentExplorerDir?.listFiles()?.toList() ?: emptyList()
-                 val filteredFiles = files.filter { it.isDirectory || it.name.endsWith(".epub", true) || it.name.endsWith(".txt", true) }
-                 
+                 val filteredFiles = files.filter { it.isDirectory || it.name.endsWith(".epub", true) || it.name.endsWith(".txt", true) }.filter {
+                     librarySearchQuery.isEmpty() || it.name.contains(librarySearchQuery, true)
+                 }
+
                  val sortedFiles = filteredFiles.sortedWith(Comparator { a, b ->
                      if (a.isDirectory && !b.isDirectory) return@Comparator -1
                      if (!a.isDirectory && b.isDirectory) return@Comparator 1
@@ -568,6 +577,8 @@ class FloatingReaderService : Service() {
                 db.epubDao().getAllBooks()
             } else {
                 db.epubDao().getAllBooksByAddedDesc()
+            }.filter {
+                librarySearchQuery.isEmpty() || it.title.contains(librarySearchQuery, true) || it.filePath.contains(librarySearchQuery, true)
             }
             withContext(Dispatchers.Main) {
                 listLibrary?.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this@FloatingReaderService)
@@ -602,6 +613,30 @@ class FloatingReaderService : Service() {
                         showToast("No book read yet")
                     }
                 }
+                
+                val etSearch = floatingView.findViewById<EditText>(R.id.et_search_library)
+                floatingView.findViewById<View>(R.id.fab_search)?.setOnClickListener {
+                    if (etSearch?.visibility == View.VISIBLE) {
+                        etSearch.visibility = View.GONE
+                        librarySearchQuery = ""
+                        loadLibraryBooks()
+                        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                        imm.hideSoftInputFromWindow(etSearch.windowToken, 0)
+                    } else {
+                        etSearch?.visibility = View.VISIBLE
+                        etSearch?.requestFocus()
+                        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                        imm.showSoftInput(etSearch, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+                    }
+                }
+                etSearch?.addTextChangedListener(object: android.text.TextWatcher {
+                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                    override fun afterTextChanged(s: android.text.Editable?) {
+                        librarySearchQuery = s?.toString() ?: ""
+                        loadLibraryBooks()
+                    }
+                })
 
                 val gestureDetector = android.view.GestureDetector(this, object : android.view.GestureDetector.SimpleOnGestureListener() {
                     override fun onFling(e1: android.view.MotionEvent?, e2: android.view.MotionEvent, velocityX: Float, velocityY: Float): Boolean {
@@ -1177,10 +1212,21 @@ class FloatingReaderService : Service() {
                         } else {
                             layoutParams.x = initialX + (event.rawX - initialTouchX).toInt()
                             layoutParams.y = initialY + (event.rawY - initialTouchY).toInt()
-                            prefs.edit()
-                                .putInt("win_x", layoutParams.x)
-                                .putInt("win_y", layoutParams.y)
-                                .apply()
+                            if (isFolded) {
+                                foldedX = layoutParams.x
+                                foldedY = layoutParams.y
+                                prefs.edit()
+                                    .putInt("fold_x", foldedX)
+                                    .putInt("fold_y", foldedY)
+                                    .apply()
+                            } else {
+                                savedWindowX = layoutParams.x
+                                savedWindowY = layoutParams.y
+                                prefs.edit()
+                                    .putInt("win_x", savedWindowX)
+                                    .putInt("win_y", savedWindowY)
+                                    .apply()
+                            }
                             windowManager.updateViewLayout(floatingView, layoutParams)
                         }
                         return true
@@ -1805,6 +1851,7 @@ class FloatingReaderService : Service() {
             val stub = floatingView.findViewById<android.view.ViewStub>(R.id.stub_overlay_notes)
             if (stub != null) {
                 overlayNotes = stub.inflate()
+                floatingView.findViewById<View>(R.id.notes_header)?.setOnTouchListener(createLongPressDragListener())
             }
         }
         
@@ -1818,6 +1865,31 @@ class FloatingReaderService : Service() {
         listNotes.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
         notesAdapter = NotesAdapter()
         listNotes.adapter = notesAdapter
+        
+        val etSearchNotes = floatingView.findViewById<android.widget.EditText>(R.id.et_search_notes)
+        floatingView.findViewById<View>(R.id.btn_notes_search)?.setOnClickListener {
+            if (etSearchNotes?.visibility == View.VISIBLE) {
+                etSearchNotes.visibility = View.GONE
+                notesSearchQuery = ""
+                loadNotes()
+                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                imm.hideSoftInputFromWindow(etSearchNotes.windowToken, 0)
+            } else {
+                etSearchNotes?.visibility = View.VISIBLE
+                etSearchNotes?.requestFocus()
+                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                imm.showSoftInput(etSearchNotes, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+            }
+        }
+        
+        etSearchNotes?.addTextChangedListener(object: android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                notesSearchQuery = s?.toString() ?: ""
+                loadNotes()
+            }
+        })
         
         btnNotesBack.setOnClickListener {
             if (selectedNotes.isNotEmpty()) {
@@ -1870,7 +1942,11 @@ class FloatingReaderService : Service() {
         serviceScope.launch(Dispatchers.IO) {
             val db = com.example.data.AppDatabase.getDatabase(this@FloatingReaderService)
             db.quickNoteDao().getAllNotes().collect { notes ->
-                notesList = notes
+                notesList = notes.filter {
+                    notesSearchQuery.isEmpty() || 
+                    it.title.contains(notesSearchQuery, true) || 
+                    it.text.contains(notesSearchQuery, true)
+                }
                 withContext(Dispatchers.Main) {
                     notesAdapter?.notifyDataSetChanged()
                 }
@@ -1919,10 +1995,15 @@ class FloatingReaderService : Service() {
         }
     }
     
+    private var notesSearchQuery: String = ""
+
     private inner class NotesAdapter : androidx.recyclerview.widget.RecyclerView.Adapter<NotesAdapter.NoteViewHolder>() {
+        val unfoldedNoteIds = mutableSetOf<Long>()
+
         inner class NoteViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
             val tvTitle: android.widget.TextView = view.findViewById(R.id.tv_note_title)
             val tvText: android.widget.TextView = view.findViewById(R.id.tv_note_text)
+            val btnUnfold: android.widget.ImageButton = view.findViewById(R.id.btn_note_unfold)
             val container: View = view.findViewById(R.id.ll_note_container)
         }
 
@@ -1933,13 +2014,30 @@ class FloatingReaderService : Service() {
 
         override fun onBindViewHolder(holder: NoteViewHolder, position: Int) {
             val note = notesList[position]
+            val isUnfolded = unfoldedNoteIds.contains(note.id.toLong())
+
             if (note.title.isNotEmpty()) {
                 holder.tvTitle.text = note.title
-                holder.tvTitle.visibility = View.VISIBLE
             } else {
-                holder.tvTitle.visibility = View.GONE
+                val lines = note.text.lines()
+                holder.tvTitle.text = if (lines.isNotEmpty()) lines[0] else "Untitled Note"
             }
+            holder.tvTitle.visibility = View.VISIBLE
+
             holder.tvText.text = note.text
+            
+            if (isUnfolded) {
+                holder.tvText.visibility = View.VISIBLE
+                holder.btnUnfold.setImageResource(android.R.drawable.arrow_up_float)
+            } else {
+                holder.tvText.visibility = View.GONE
+                holder.btnUnfold.setImageResource(android.R.drawable.arrow_down_float)
+            }
+            
+            holder.btnUnfold.setOnClickListener {
+                if (isUnfolded) unfoldedNoteIds.remove(note.id.toLong()) else unfoldedNoteIds.add(note.id.toLong())
+                notifyItemChanged(position)
+            }
             
             if (selectedNotes.contains(note)) {
                 holder.container.setBackgroundColor(android.graphics.Color.parseColor("#3A5A7A"))
@@ -2051,6 +2149,14 @@ class FloatingReaderService : Service() {
     fun setFolded(folded: Boolean) {
         isFolded = folded
         if (folded) {
+            // Save expanded position before folding
+            savedWindowX = layoutParams.x
+            savedWindowY = layoutParams.y
+            prefs.edit()
+                .putInt("win_x", savedWindowX)
+                .putInt("win_y", savedWindowY)
+                .apply()
+
             bubbleIcon.visibility = View.VISIBLE
             windowContainer.visibility = View.GONE
             layoutParams.width = WindowManager.LayoutParams.WRAP_CONTENT
@@ -2066,6 +2172,10 @@ class FloatingReaderService : Service() {
             // Save bubble position before expanding
             foldedX = layoutParams.x
             foldedY = layoutParams.y
+            prefs.edit()
+                .putInt("fold_x", foldedX)
+                .putInt("fold_y", foldedY)
+                .apply()
 
             bubbleIcon.visibility = View.GONE
             windowContainer.visibility = View.VISIBLE
@@ -2078,6 +2188,9 @@ class FloatingReaderService : Service() {
             layoutParams.width = Math.min(savedWindowWidth, maxW)
             layoutParams.height = Math.min(savedWindowHeight, maxH)
             layoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+            
+            layoutParams.x = savedWindowX
+            layoutParams.y = savedWindowY
             
             if (layoutParams.x + layoutParams.width > maxW) {
                 layoutParams.x = maxW - layoutParams.width

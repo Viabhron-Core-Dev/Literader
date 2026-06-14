@@ -127,6 +127,19 @@
             android:tint="#FFFFFF" />
     </LinearLayout>
 
+    <EditText
+        android:id="@+id/et_search_library"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Search here..."
+        android:textColor="#FFFFFF"
+        android:textColorHint="#AAAAAA"
+        android:background="#2A2A2A"
+        android:padding="12dp"
+        android:inputType="text"
+        android:singleLine="true"
+        android:visibility="gone" />
+
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
@@ -148,6 +161,15 @@
             android:layout_marginEnd="16dp"
             android:layout_marginBottom="16dp"
             android:gravity="center">
+            <ImageButton
+                android:id="@+id/fab_search"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginBottom="8dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:scaleType="fitCenter"
+                android:src="@android:drawable/ic_menu_search"
+                android:tint="#FFFFFF" />
             <ImageButton
                 android:id="@+id/fab_continue"
                 android:layout_width="48dp"

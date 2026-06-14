@@ -38,13 +38,23 @@
             android:id="@+id/btn_notes_delete"
             android:layout_width="32dp"
             android:layout_height="32dp"
-            android:layout_toStartOf="@id/btn_notes_add"
+            android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
-            android:layout_marginEnd="16dp"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:src="@android:drawable/ic_menu_delete"
             android:tint="#FFFFFF"
             android:visibility="gone" />
+
+        <ImageButton
+            android:id="@+id/btn_notes_search"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_toStartOf="@id/btn_notes_add"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="8dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_search"
+            android:tint="#FFFFFF" />
 
         <ImageButton
             android:id="@+id/btn_notes_add"
@@ -56,6 +66,19 @@
             android:src="@android:drawable/ic_menu_add"
             android:tint="#FFFFFF" />
     </RelativeLayout>
+
+    <EditText
+        android:id="@+id/et_search_notes"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Search notes..."
+        android:textColor="#FFFFFF"
+        android:textColorHint="#AAAAAA"
+        android:background="#2A2A2A"
+        android:padding="12dp"
+        android:inputType="text"
+        android:singleLine="true"
+        android:visibility="gone" />
 
     <FrameLayout
         android:layout_width="match_parent"
