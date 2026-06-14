@@ -170,13 +170,17 @@ System is fully rebuilt from scratch post-workspace wipe. Ready for deployment.
 - [x] Repositioned the window controls to strictly float atop the absolute highest UI layer inside the wrapper. Providing a seamless interface that guarantees the controls are ever-present across Library, Search, Bookmarks, and Settings overlays independently.
 - [x] Inserted a sleek red-tinted cross vector icon into the `item_bookmark` adapter cards directly mapping cleanly to the real-time delete commands across the Room instance.
 
+### Phase 34: Keystore Security Remediation
+- [x] Added `debug.keystore.base64`, `*.keystore`, `*.jks`, `*.p12` to `.gitignore`.
+- [ ] Remove `debug.keystore.base64` from git tracking via `git rm --cached debug.keystore.base64` (Manual step required outside AI Studio constraints).
+- [x] Verified `build.gradle.kts` signing configuration - defaults are secure.
+- [ ] Purge git history to remove compromised keystore (Manual step required: user must use BFG or git filter-repo outside AI Studio).
+
 ### Progress Update
-* Blueprint Status: Phase 33
+* Blueprint Status: Phase 34
 * Files Synchronized:
-  - `item_bookmark.xml`: Bound inline deletion cross mapping structural deletes cleanly.
-  - `layout_floating_reader.xml`: Transposed Window Handle bindings atop overlay instances.
-  - `FloatingReaderService.kt`: Re-hooked dynamic `loadAndJumpToOffset` function triggers ensuring bookmark array tap logic works properly.
-* Next Action: Await validation or deployment.
+  - `.gitignore`: Updated with strict keystore exclusion rules.
+* Next Action: Await user manual Git history purge.
 
 
 

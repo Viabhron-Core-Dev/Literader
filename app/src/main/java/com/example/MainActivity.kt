@@ -184,7 +184,7 @@ fun WelcomeScreen(onContinue: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Image(
-            painter = painterResource(id = R.drawable.ic_launcher_foreground),
+            painter = painterResource(id = R.mipmap.app_icon_adaptive_fore),
             contentDescription = "App Logo",
             modifier = Modifier.size(120.dp)
         )
