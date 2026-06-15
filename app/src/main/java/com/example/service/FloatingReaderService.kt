@@ -243,10 +243,11 @@ class FloatingReaderService : Service() {
                             if (overlayChapters?.visibility == View.VISIBLE) {
                                 hideOverlays()
                             } else {
+                                val tapToTurn = prefs.getBoolean("tap_to_turn", true)
                                 val width = v.width
-                                if (endX < width * 0.3f) {
+                                if (tapToTurn && endX < width * 0.3f) {
                                     scrollView.smoothScrollBy(0, -(v.height - 100))
-                                } else if (endX > width * 0.7f) {
+                                } else if (tapToTurn && endX > width * 0.7f) {
                                     scrollView.smoothScrollBy(0, v.height - 100)
                                 } else {
                                     val isVisible = toolbarContainer.visibility == View.VISIBLE
@@ -776,10 +777,28 @@ class FloatingReaderService : Service() {
                     syncWindowStates()
                 }
                 floatingView.findViewById<android.widget.Button>(R.id.btn_backup_data)?.setOnClickListener {
-                    showToast("Backup (No Books) saved to Downloads.")
+                    showToast("Backing up data (No Books)...")
+                    kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Main) { // Not best practice but simple
+                        val res = com.example.utils.BackupHelper.backupData(this@FloatingReaderService, false)
+                        if (res.isSuccess) {
+                            val path = res.getOrNull() ?: ""
+                            showToast("Backup saved to Downloads: " + java.io.File(path).name)
+                        } else {
+                            showToast("Backup failed: " + res.exceptionOrNull()?.message)
+                        }
+                    }
                 }
                 floatingView.findViewById<android.widget.Button>(R.id.btn_backup_data_books)?.setOnClickListener {
-                    showToast("Full Backup saved to Downloads.")
+                    showToast("Backing up full data...")
+                    kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+                        val res = com.example.utils.BackupHelper.backupData(this@FloatingReaderService, true)
+                        if (res.isSuccess) {
+                            val path = res.getOrNull() ?: ""
+                            showToast("Full Backup saved to Downloads: " + java.io.File(path).name)
+                        } else {
+                            showToast("Backup failed: " + res.exceptionOrNull()?.message)
+                        }
+                    }
                 }
                 floatingView.findViewById<android.widget.Button>(R.id.btn_restore_data)?.setOnClickListener {
                     showToast("Data restored.")
@@ -829,6 +848,13 @@ class FloatingReaderService : Service() {
                     prefs.edit().putBoolean("use_scoped_dir", isChecked).apply()
                     if (overlayLibrary?.visibility == View.VISIBLE) {
                         loadLibraryBooks()
+                    }
+                }
+                
+                floatingView.findViewById<android.widget.Switch>(R.id.switch_tap_to_turn)?.apply {
+                    isChecked = prefs.getBoolean("tap_to_turn", true)
+                    setOnCheckedChangeListener { _, checked ->
+                        prefs.edit().putBoolean("tap_to_turn", checked).apply()
                     }
                 }
                 
@@ -1315,6 +1341,9 @@ class FloatingReaderService : Service() {
         
         floatingView.findViewById<SeekBar>(R.id.seek_progress)?.progress = percent
         
+        floatingView.findViewById<ProgressBar>(R.id.loading_spinner)?.visibility = View.GONE
+        tvContent.visibility = View.VISIBLE
+        
         scrollView.post {
             if (scrollToBottom) {
                 // Scroll to bottom
@@ -1331,11 +1360,19 @@ class FloatingReaderService : Service() {
             val newIndex = currentChapterIndex + offset
             if (newIndex in 0 until book.totalChapters) {
                 saveCurrentPosition() // save before swap
-                currentChapterIndex = newIndex
-                // aggressively update db memory
-                val updated = book.copy(lastReadChapter = newIndex, lastReadScrollY = 0)
-                currentBook = updated
-                loadChapterText(scrollToBottom)
+                
+                serviceScope.launch(Dispatchers.Main) {
+                    val spinner = floatingView.findViewById<ProgressBar>(R.id.loading_spinner)
+                    spinner?.visibility = View.VISIBLE
+                    tvContent.visibility = View.INVISIBLE
+                    delay(1000) // 1 second spinner as requested
+                    
+                    currentChapterIndex = newIndex
+                    // aggressively update db memory
+                    val updated = book.copy(lastReadChapter = newIndex, lastReadScrollY = 0)
+                    currentBook = updated
+                    loadChapterText(scrollToBottom)
+                }
             }
         }
     }

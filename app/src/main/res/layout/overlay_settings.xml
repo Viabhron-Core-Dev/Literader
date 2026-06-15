@@ -47,6 +47,8 @@
             
             <Switch android:id="@+id/switch_scoped_dir" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Enable Full File Explorer" android:textColor="#CCC" android:paddingVertical="8dp"/>
             
+            <Switch android:id="@+id/switch_tap_to_turn" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Tap to Turn Pages" android:textColor="#CCC" android:paddingVertical="8dp"/>
+            
             <Button android:id="@+id/btn_backup_data" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Backup App Data (No Books)" android:layout_marginTop="16dp"/>
             <Button android:id="@+id/btn_backup_data_books" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Backup App Data (With Books)" android:layout_marginTop="8dp"/>
             <Button android:id="@+id/btn_restore_data" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Restore App Data" android:layout_marginTop="8dp"/>

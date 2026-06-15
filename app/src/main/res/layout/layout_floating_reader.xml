@@ -88,6 +88,13 @@
                     android:text="Loading..."/>
             </ScrollView>
 
+            <ProgressBar
+                android:id="@+id/loading_spinner"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="center"
+                android:visibility="gone" />
+
             <!-- Bottom window controls moved to end of FrameLayout to draw over overlays -->
 
             <LinearLayout
