@@ -66,12 +66,14 @@ class MainActivity : ComponentActivity() {
                 val res = com.example.utils.BackupHelper.restoreData(this@MainActivity, uri)
                 if (res.isSuccess) {
                     Toast.makeText(this@MainActivity, "Data restored. Please restart the app.", Toast.LENGTH_LONG).show()
+                    stopService(Intent(this@MainActivity, FloatingReaderService::class.java))
+                    finishAndRemoveTask()
+                    kotlinx.coroutines.delay(1000)
+                    kotlin.system.exitProcess(0)
                 } else {
                     Toast.makeText(this@MainActivity, "Restore failed.", Toast.LENGTH_SHORT).show()
+                    finishAndRemoveTask()
                 }
-                finishAndRemoveTask()
-                // Stop service to apply changes
-                stopService(Intent(this@MainActivity, FloatingReaderService::class.java))
             }
         } else {
             finishAndRemoveTask()
@@ -250,6 +252,7 @@ fun WelcomeScreen(onContinue: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+
                 Switch(
                     checked = useExplorerMode,
                     onCheckedChange = { checked ->
