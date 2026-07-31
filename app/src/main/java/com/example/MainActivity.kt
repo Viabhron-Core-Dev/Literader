@@ -60,6 +60,24 @@ class MainActivity : ComponentActivity() {
         finishAndRemoveTask()
     }
 
+    private val backupPicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            lifecycleScope.launch {
+                val res = com.example.utils.BackupHelper.restoreData(this@MainActivity, uri)
+                if (res.isSuccess) {
+                    Toast.makeText(this@MainActivity, "Data restored. Please restart the app.", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(this@MainActivity, "Restore failed.", Toast.LENGTH_SHORT).show()
+                }
+                finishAndRemoveTask()
+                // Stop service to apply changes
+                stopService(Intent(this@MainActivity, FloatingReaderService::class.java))
+            }
+        } else {
+            finishAndRemoveTask()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -137,6 +155,11 @@ class MainActivity : ComponentActivity() {
 
         if (intent.getBooleanExtra("PICK_DIRECTORY", false)) {
             directoryPicker.launch(null)
+            return
+        }
+        
+        if (intent.getBooleanExtra("PICK_BACKUP", false)) {
+            backupPicker.launch("application/zip")
             return
         }
 
