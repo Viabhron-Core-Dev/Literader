@@ -79,6 +79,47 @@ object BackupHelper {
         }
     }
 
+    suspend fun restoreData(context: Context, uri: android.net.Uri): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                ZipInputStream(inputStream).use { zis ->
+                    var entry = zis.nextEntry
+                    while (entry != null) {
+                        val name = entry.name
+                        val targetFile = when {
+                            name.startsWith("databases/") -> {
+                                val dbName = name.substringAfter("databases/")
+                                context.getDatabasePath(dbName)
+                            }
+                            name.startsWith("shared_prefs/") -> {
+                                val prefName = name.substringAfter("shared_prefs/")
+                                File(context.applicationInfo.dataDir, "shared_prefs/$prefName")
+                            }
+                            name.startsWith("files/") -> {
+                                val fileName = name.substringAfter("files/")
+                                File(context.filesDir, fileName)
+                            }
+                            else -> null
+                        }
+
+                        if (targetFile != null && !entry.isDirectory) {
+                            targetFile.parentFile?.mkdirs()
+                            FileOutputStream(targetFile).use { fos ->
+                                zis.copyTo(fos)
+                            }
+                        }
+                        zis.closeEntry()
+                        entry = zis.nextEntry
+                    }
+                }
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("BackupHelper", "Restore failed", e)
+            Result.failure(e)
+        }
+    }
+
     private fun addFileToZip(file: File, entryName: String, zos: ZipOutputStream) {
         try {
             val entry = ZipEntry(entryName)
