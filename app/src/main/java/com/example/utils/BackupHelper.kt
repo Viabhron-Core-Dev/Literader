@@ -16,6 +16,7 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 object BackupHelper {
+
     suspend fun backupData(context: Context, includeBooks: Boolean): Result<String> = withContext(Dispatchers.IO) {
         try {
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
@@ -26,6 +27,12 @@ object BackupHelper {
             if (!downloadsDir.exists()) downloadsDir.mkdirs()
             
             val destFile = File(downloadsDir, fileName)
+            
+            try {
+                com.example.data.AppDatabase.getDatabase(context).openHelper.writableDatabase.execSQL("PRAGMA wal_checkpoint(FULL)")
+            } catch (e: Exception) {
+                Log.e("BackupHelper", "Failed to checkpoint database", e)
+            }
             
             ZipOutputStream(FileOutputStream(destFile)).use { zos ->
                 // Backup Databases
@@ -81,6 +88,20 @@ object BackupHelper {
 
     suspend fun restoreData(context: Context, uri: android.net.Uri): Result<Unit> = withContext(Dispatchers.IO) {
         try {
+            com.example.data.AppDatabase.closeDatabase()
+            
+            val dbFile = context.getDatabasePath("litereader_db")
+            if (dbFile != null) {
+                val dbDir = dbFile.parentFile
+                if (dbDir != null && dbDir.exists()) {
+                    dbDir.listFiles()?.forEach { file ->
+                        if (file.isFile && file.name.startsWith("litereader_db")) {
+                            file.delete()
+                        }
+                    }
+                }
+            }
+
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
                 ZipInputStream(inputStream).use { zis ->
                     var entry = zis.nextEntry
