@@ -53,10 +53,23 @@ class LibraryRepository(private val context: Context) {
             if (totalChapters > 0) {
                 dao.updateBook(finalBook.copy(totalChapters = totalChapters, isParsed = true))
             }
+            
+            enforceLimit()
+            
             return@withContext finalBook
         } catch (e: Exception) {
             e.printStackTrace()
             return@withContext null
+        }
+    }
+
+    private suspend fun enforceLimit(max: Int = 10) {
+        val allBooks = dao.getAllBooks() // This is ordered by lastOpenedTimestamp DESC
+        if (allBooks.size > max) {
+            val toDelete = allBooks.drop(max)
+            for (b in toDelete) {
+                deleteBook(b)
+            }
         }
     }
 
