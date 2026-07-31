@@ -801,7 +801,12 @@ class FloatingReaderService : Service() {
                     }
                 }
                 floatingView.findViewById<android.widget.Button>(R.id.btn_restore_data)?.setOnClickListener {
-                    showToast("Data restored.")
+                    val intent = Intent(this@FloatingReaderService, com.example.MainActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        putExtra("PICK_BACKUP", true)
+                    }
+                    try { startActivity(intent) } catch (e: Exception) { showToast("Failed to open file picker") }
+                    hideOverlays()
                 }
                 floatingView.findViewById<android.widget.Button>(R.id.btn_export_logs)?.setOnClickListener {
                     try {
