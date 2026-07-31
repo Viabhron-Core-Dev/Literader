@@ -1,3 +1,4 @@
+// app/src/main/java/com/example/MainActivity.kt
 package com.example
 
 import android.content.Intent
@@ -87,7 +88,7 @@ class MainActivity : ComponentActivity() {
         val firstLaunch = prefs.getBoolean("first_launch", true)
         
         // Skip welcome if opening a file or picking a file
-        if (intent.action == Intent.ACTION_VIEW || intent.getBooleanExtra("PICK_EPUB", false) || intent.getBooleanExtra("PICK_DIRECTORY", false)) {
+        if (intent.action == Intent.ACTION_VIEW || intent.getBooleanExtra("PICK_EPUB", false) || intent.getBooleanExtra("PICK_DIRECTORY", false) || intent.getBooleanExtra("PICK_BACKUP", false)) {
             handleIntent(intent)
             return
         }
@@ -252,7 +253,6 @@ fun WelcomeScreen(onContinue: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-
                 Switch(
                     checked = useExplorerMode,
                     onCheckedChange = { checked ->
