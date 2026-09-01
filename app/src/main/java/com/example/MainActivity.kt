@@ -1,4 +1,3 @@
-// app/src/main/java/com/example/MainActivity.kt
 package com.example
 
 import android.content.Intent
@@ -67,14 +66,12 @@ class MainActivity : ComponentActivity() {
                 val res = com.example.utils.BackupHelper.restoreData(this@MainActivity, uri)
                 if (res.isSuccess) {
                     Toast.makeText(this@MainActivity, "Data restored. Please restart the app.", Toast.LENGTH_LONG).show()
-                    stopService(Intent(this@MainActivity, FloatingReaderService::class.java))
-                    finishAndRemoveTask()
-                    kotlinx.coroutines.delay(1000)
-                    kotlin.system.exitProcess(0)
                 } else {
                     Toast.makeText(this@MainActivity, "Restore failed.", Toast.LENGTH_SHORT).show()
-                    finishAndRemoveTask()
                 }
+                finishAndRemoveTask()
+                // Stop service to apply changes
+                stopService(Intent(this@MainActivity, FloatingReaderService::class.java))
             }
         } else {
             finishAndRemoveTask()
@@ -88,7 +85,10 @@ class MainActivity : ComponentActivity() {
         val firstLaunch = prefs.getBoolean("first_launch", true)
         
         // Skip welcome if opening a file or picking a file
-        if (intent.action == Intent.ACTION_VIEW || intent.getBooleanExtra("PICK_EPUB", false) || intent.getBooleanExtra("PICK_DIRECTORY", false) || intent.getBooleanExtra("PICK_BACKUP", false)) {
+        if (intent.action == Intent.ACTION_VIEW || 
+            intent.getBooleanExtra("PICK_EPUB", false) || 
+            intent.getBooleanExtra("PICK_DIRECTORY", false) ||
+            intent.getBooleanExtra("PICK_BACKUP", false)) {
             handleIntent(intent)
             return
         }
@@ -162,7 +162,7 @@ class MainActivity : ComponentActivity() {
         }
         
         if (intent.getBooleanExtra("PICK_BACKUP", false)) {
-            backupPicker.launch("application/zip")
+            backupPicker.launch("*/*")
             return
         }
 

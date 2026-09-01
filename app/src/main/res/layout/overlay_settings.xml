@@ -40,6 +40,9 @@
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Font Size" android:textColor="#CCC" android:layout_marginTop="8dp"/>
             <SeekBar android:id="@+id/seek_font_size" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="40" android:progress="18" android:paddingTop="8dp" android:paddingBottom="16dp"/>
             
+            <TextView android:id="@+id/tv_auto_scroll_speed_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Auto-Scroll Speed (5)" android:textColor="#CCC" android:layout_marginTop="4dp"/>
+            <SeekBar android:id="@+id/seek_auto_scroll_speed" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="19" android:progress="4" android:paddingTop="8dp" android:paddingBottom="16dp"/>
+            
             <Switch android:id="@+id/switch_bookmarks" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Enable Bookmarks UI" android:textColor="#CCC" android:paddingVertical="8dp"/>
             <Switch android:id="@+id/switch_theme" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Light Theme" android:textColor="#CCC" android:paddingVertical="8dp"/>
             

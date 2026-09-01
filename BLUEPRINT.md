@@ -176,11 +176,29 @@ System is fully rebuilt from scratch post-workspace wipe. Ready for deployment.
 - [x] Verified `build.gradle.kts` signing configuration - defaults are secure.
 - [ ] Purge git history to remove compromised keystore (Manual step required: user must use BFG or git filter-repo outside AI Studio).
 
+### Phase 35: On-Demand Architecture, Lean Folded Mode & Backup Import Fix
+- [x] Fixed `MainActivity.kt` bypass condition allowing `Restore App Data` to open the system file picker.
+- [x] Enforced 10-book max limit across `LibraryRepository` and `FloatingReaderService`, deleting Room records and unzipped chapter directories of older books beyond 10.
+- [x] Implemented lean folded teardown: immediately persists reading state, cancels background search jobs, stops auto-scroll handlers, frees TTS native buffers, hides overlays, and detaches RecyclerView adapters while preserving the current chapter text and scroll offset for instant resume.
+
+### Phase 36: Auto-Scroll Tap Toggle, Speed Settings & Single Active Book Storage Optimization
+- [x] Auto-Scroll Tap-to-Pause/Resume: Tapping the reader content area while auto-scrolling is active smoothly pauses or resumes scrolling.
+- [x] Auto-Scroll Speed SeekBar: Added an auto-scroll speed adjustment slider (1-20) in Settings with real-time text feedback and persistent configuration in `SharedPreferences`.
+- [x] Single Active Book Chapter Storage: Optimized disk storage so extracted chapter files exist on disk exclusively for the currently active/reading book. Switching books purges previous chapter directories from disk while keeping all book metadata intact.
+- [x] Extended Recent Library Limit: Expanded the library history capacity from 10 to 20 books.
+
+### Phase 37: Auto-Scroll Auto-Advance, TTS Mutual Exclusion & Graceful Missing File Handling
+- [x] Auto-Scroll Continuous Chapter Auto-Advance: When auto-scroll reaches the bottom of the current chapter, it automatically advances to the next chapter, scrolls to top, and smoothly continues scrolling.
+- [x] TTS & Auto-Scroll Mutual Exclusion: Starting TTS automatically halts active auto-scroll to prevent scroll position conflicts; conversely, starting or resuming auto-scroll immediately pauses TTS playback.
+- [x] Missing Source File Notification: When attempting to read a purged book whose original EPUB/TXT file was deleted or moved from storage, displays clear feedback and a helpful placeholder instead of crashing or failing silently.
+- [x] Re-extraction Visual Feedback: Displays a loading spinner when switching back to a recent book that requires on-demand chapter extraction.
+
 ### Progress Update
-* Blueprint Status: Phase 34
+* Blueprint Status: Phase 37 Complete
 * Files Synchronized:
-  - `.gitignore`: Updated with strict keystore exclusion rules.
-* Next Action: Await user manual Git history purge.
+  - `app/src/main/java/com/example/service/FloatingReaderService.kt`: Added chapter auto-advance to `scrollRunnable`, mutual exclusion between TTS and auto-scroll, loading spinner on re-extraction, and clear error messaging for missing source files.
+  - `RECEIPTS_001.md`: Logged changes and verification status.
+* Next Action: Ready for testing.
 
 
 

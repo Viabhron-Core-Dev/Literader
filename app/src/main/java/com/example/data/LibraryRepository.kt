@@ -17,12 +17,14 @@ class LibraryRepository(private val context: Context) {
 
     suspend fun updateBook(book: EpubBook) = dao.updateBook(book)
     
-    suspend fun deleteBook(book: EpubBook) {
+    suspend fun deleteBook(book: EpubBook) = withContext(Dispatchers.IO) {
         dao.deleteBook(book)
         val bookDir = File(context.filesDir, "book_${book.id}")
         bookDir.deleteRecursively()
         val origFile = File(book.filePath)
-        if (origFile.exists()) origFile.delete()
+        if (origFile.exists() && origFile.parentFile?.absolutePath == context.filesDir.absolutePath) {
+            origFile.delete()
+        }
     }
 
     suspend fun importBook(uri: Uri): EpubBook? = withContext(Dispatchers.IO) {
@@ -54,7 +56,8 @@ class LibraryRepository(private val context: Context) {
                 dao.updateBook(finalBook.copy(totalChapters = totalChapters, isParsed = true))
             }
             
-            enforceLimit()
+            retainOnlyActiveBookChapters(id)
+            enforceLimit(20)
             
             return@withContext finalBook
         } catch (e: Exception) {
@@ -63,7 +66,16 @@ class LibraryRepository(private val context: Context) {
         }
     }
 
-    private suspend fun enforceLimit(max: Int = 10) {
+    suspend fun retainOnlyActiveBookChapters(activeBookId: Int) = withContext(Dispatchers.IO) {
+        val files = context.filesDir.listFiles() ?: return@withContext
+        for (f in files) {
+            if (f.isDirectory && f.name.startsWith("book_") && f.name != "book_$activeBookId") {
+                f.deleteRecursively()
+            }
+        }
+    }
+
+    suspend fun enforceLimit(max: Int = 20) = withContext(Dispatchers.IO) {
         val allBooks = dao.getAllBooks() // This is ordered by lastOpenedTimestamp DESC
         if (allBooks.size > max) {
             val toDelete = allBooks.drop(max)

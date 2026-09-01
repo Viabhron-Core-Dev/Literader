@@ -69,14 +69,41 @@ class FloatingReaderService : Service() {
 
     // Auto Scroll State
     private var isAutoScrolling = false
+    private var isAutoScrollSession = false
+    private var autoScrollSpeed = 5
     private val scrollHandler = Handler(Looper.getMainLooper())
     private var mediaSession: android.media.session.MediaSession? = null
 
     private val scrollRunnable = object : Runnable {
         override fun run() {
             if (isAutoScrolling) {
-                scrollView.smoothScrollBy(0, 2)
-                scrollHandler.postDelayed(this, 30) // light speed modifier
+                // Check if reached the bottom of current chapter
+                val child = scrollView.getChildAt(0)
+                if (child != null && scrollView.height > 0) {
+                    val maxScroll = child.height - scrollView.height
+                    if (maxScroll > 0 && scrollView.scrollY >= maxScroll - 6) {
+                        currentBook?.let { book ->
+                            if (currentChapterIndex < book.totalChapters - 1) {
+                                navigateChapter(1)
+                                scrollView.scrollTo(0, 0)
+                                showToast("Advancing to next chapter...")
+                                scrollHandler.postDelayed(this, 1200L)
+                                return
+                            } else {
+                                isAutoScrolling = false
+                                isAutoScrollSession = false
+                                showToast("End of book reached")
+                                return
+                            }
+                        }
+                    }
+                }
+
+                // Smooth scroll step based on autoScrollSpeed (1 to 20)
+                val step = Math.max(1, autoScrollSpeed / 3)
+                scrollView.smoothScrollBy(0, step)
+                val delay = Math.max(10L, 60L - (autoScrollSpeed * 2L))
+                scrollHandler.postDelayed(this, delay)
             }
         }
     }
@@ -240,8 +267,22 @@ class FloatingReaderService : Service() {
                             }
                         } else if (dt < 200 && Math.abs(dy) < 30 && Math.abs(dx) < 30 && !hasSelection) {
                             // Tap
-                            if (overlayChapters?.visibility == View.VISIBLE) {
+                            if (overlayChapters?.visibility == View.VISIBLE || overlayLibrary?.visibility == View.VISIBLE || overlaySettings?.visibility == View.VISIBLE || overlayBookmarks?.visibility == View.VISIBLE || overlayNotes?.visibility == View.VISIBLE) {
                                 hideOverlays()
+                            } else if (isAutoScrollSession) {
+                                isAutoScrolling = !isAutoScrolling
+                                if (isAutoScrolling) {
+                                    if (isSpeaking) {
+                                        tts?.stop()
+                                        isSpeaking = false
+                                        btnTts.setImageResource(android.R.drawable.ic_media_play)
+                                    }
+                                    showToast("Auto-scroll Resumed")
+                                    scrollHandler.post(scrollRunnable)
+                                } else {
+                                    showToast("Auto-scroll Paused")
+                                    scrollHandler.removeCallbacks(scrollRunnable)
+                                }
                             } else {
                                 val tapToTurn = prefs.getBoolean("tap_to_turn", true)
                                 val width = v.width
@@ -343,6 +384,8 @@ class FloatingReaderService : Service() {
     }
     
     private fun hideOverlays() {
+        searchJob?.cancel()
+        searchJob = null
         overlayLibrary?.visibility = View.GONE
         overlayChapters?.visibility = View.GONE
         overlaySettings?.visibility = View.GONE
@@ -455,6 +498,7 @@ class FloatingReaderService : Service() {
     }
 
     private fun loadSettingsFromPrefs() {
+        autoScrollSpeed = prefs.getInt("auto_scroll_speed", 5)
         currentLibraryTab = prefs.getString("last_library_tab", "Recent") ?: "Recent"
         val lastDirPath = prefs.getString("last_explorer_dir", null)
         explorerSortByName = prefs.getBoolean("explorer_sort_name", true)
@@ -886,13 +930,37 @@ class FloatingReaderService : Service() {
                     overlaySettings?.setBackgroundColor(bgColor)
                 }
                 
-                floatingView.findViewById<android.widget.SeekBar>(R.id.seek_font_size)?.setOnSeekBarChangeListener(object: android.widget.SeekBar.OnSeekBarChangeListener{
-                    override fun onProgressChanged(seekBar: android.widget.SeekBar?, progress: Int, fromUser: Boolean) {
-                        tvContent.textSize = (12 + progress).toFloat()
-                    }
-                    override fun onStartTrackingTouch(seekBar: android.widget.SeekBar?) {}
-                    override fun onStopTrackingTouch(seekBar: android.widget.SeekBar?) {}
-                })
+                floatingView.findViewById<android.widget.SeekBar>(R.id.seek_font_size)?.apply {
+                    progress = prefs.getInt("font_size_progress", 6)
+                    setOnSeekBarChangeListener(object: android.widget.SeekBar.OnSeekBarChangeListener{
+                        override fun onProgressChanged(seekBar: android.widget.SeekBar?, progress: Int, fromUser: Boolean) {
+                            tvContent.textSize = (12 + progress).toFloat()
+                            if (fromUser) {
+                                prefs.edit().putInt("font_size_progress", progress).apply()
+                            }
+                        }
+                        override fun onStartTrackingTouch(seekBar: android.widget.SeekBar?) {}
+                        override fun onStopTrackingTouch(seekBar: android.widget.SeekBar?) {}
+                    })
+                }
+
+                val tvSpeedLabel = floatingView.findViewById<android.widget.TextView>(R.id.tv_auto_scroll_speed_label)
+                val seekSpeed = floatingView.findViewById<android.widget.SeekBar>(R.id.seek_auto_scroll_speed)
+                seekSpeed?.apply {
+                    progress = autoScrollSpeed - 1
+                    tvSpeedLabel?.text = "Auto-Scroll Speed ($autoScrollSpeed)"
+                    setOnSeekBarChangeListener(object: android.widget.SeekBar.OnSeekBarChangeListener {
+                        override fun onProgressChanged(seekBar: android.widget.SeekBar?, progress: Int, fromUser: Boolean) {
+                            autoScrollSpeed = progress + 1
+                            tvSpeedLabel?.text = "Auto-Scroll Speed ($autoScrollSpeed)"
+                            if (fromUser) {
+                                prefs.edit().putInt("auto_scroll_speed", autoScrollSpeed).apply()
+                            }
+                        }
+                        override fun onStartTrackingTouch(seekBar: android.widget.SeekBar?) {}
+                        override fun onStopTrackingTouch(seekBar: android.widget.SeekBar?) {}
+                    })
+                }
             }
         }
     }
@@ -1140,8 +1208,14 @@ class FloatingReaderService : Service() {
         }
         floatingView.findViewById<View>(R.id.btn_auto_scroll).setOnClickListener {
             isAutoScrolling = !isAutoScrolling
+            isAutoScrollSession = isAutoScrolling
             if (isAutoScrolling) {
-                showToast("Auto-scroll ON")
+                if (isSpeaking) {
+                    tts?.stop()
+                    isSpeaking = false
+                    btnTts.setImageResource(android.R.drawable.ic_media_play)
+                }
+                showToast("Auto-scroll ON (Tap to Pause/Resume)")
                 scrollHandler.post(scrollRunnable)
             } else {
                 showToast("Auto-scroll OFF")
@@ -1297,6 +1371,11 @@ class FloatingReaderService : Service() {
                 db.epubDao().updateBook(book)
                 currentBook = book
                 
+                // Retain only active book extracted chapters on disk
+                com.example.data.LibraryRepository(this@FloatingReaderService).retainOnlyActiveBookChapters(bookId)
+                // Enforce recent books limit (max 20 books stored in history)
+                com.example.data.LibraryRepository(this@FloatingReaderService).enforceLimit(20)
+                
                 var targetChapter = book.lastReadChapter
                 val totalChapters = book.totalChapters
                 if (targetChapter >= totalChapters) {
@@ -1315,7 +1394,22 @@ class FloatingReaderService : Service() {
         val book = currentBook ?: return
         serviceScope.launch(Dispatchers.IO) {
             val bookDir = File(filesDir, "book_${book.id}")
-            val chapterFile = File(bookDir, "chapter_$currentChapterIndex.txt")
+            var chapterFile = File(bookDir, "chapter_$currentChapterIndex.txt")
+            if (!chapterFile.exists()) {
+                val srcFile = File(book.filePath)
+                if (srcFile.exists()) {
+                    withContext(Dispatchers.Main) {
+                        floatingView.findViewById<ProgressBar>(R.id.loading_spinner)?.visibility = View.VISIBLE
+                        tvContent.visibility = View.INVISIBLE
+                    }
+                    if (srcFile.name.endsWith(".txt", true)) {
+                        com.example.data.EpubParser.parseTxtToText(this@FloatingReaderService, book.id, srcFile)
+                    } else {
+                        com.example.data.EpubParser.parseEpubToText(this@FloatingReaderService, book.id, srcFile)
+                    }
+                    chapterFile = File(bookDir, "chapter_$currentChapterIndex.txt")
+                }
+            }
             if (chapterFile.exists()) {
                 val text = chapterFile.readText()
                 withContext(Dispatchers.Main) {
@@ -1324,7 +1418,9 @@ class FloatingReaderService : Service() {
                 }
             } else {
                 withContext(Dispatchers.Main) {
-                    chapterContent = "Chapter content not found."
+                    val fileName = File(book.filePath).name
+                    showToast("Source file missing: $fileName")
+                    chapterContent = "⚠️ Source file missing from device:\n\n${book.filePath}\n\nPlease verify that the file was not deleted or moved."
                     renderChapter(0, scrollToBottom)
                 }
             }
@@ -1583,6 +1679,12 @@ class FloatingReaderService : Service() {
             isSpeaking = false
             btnTts.setImageResource(android.R.drawable.ic_media_play)
         } else {
+            // Stop auto-scroll if running to prevent scroll conflicts
+            if (isAutoScrolling || isAutoScrollSession) {
+                isAutoScrolling = false
+                isAutoScrollSession = false
+                scrollHandler.removeCallbacks(scrollRunnable)
+            }
             val offset = tvContent.layout?.getLineStart(tvContent.layout?.getLineForVertical(scrollView.scrollY) ?: 0) ?: 0
             val textToSpeak = chapterContent.substring(offset)
             val chunks = textToSpeak.chunked(3000)
@@ -2197,13 +2299,41 @@ class FloatingReaderService : Service() {
     fun setFolded(folded: Boolean) {
         isFolded = folded
         if (folded) {
-            // Save expanded position before folding
+            // Save reading position before folding
+            saveCurrentPosition()
+
+            // Save expanded coordinates
             savedWindowX = layoutParams.x
             savedWindowY = layoutParams.y
             prefs.edit()
                 .putInt("win_x", savedWindowX)
                 .putInt("win_y", savedWindowY)
                 .apply()
+
+            // Stop background loops and handlers
+            if (isAutoScrolling || isAutoScrollSession) {
+                isAutoScrolling = false
+                isAutoScrollSession = false
+                scrollHandler.removeCallbacks(scrollRunnable)
+            }
+            
+            searchJob?.cancel()
+            searchJob = null
+            
+            if (tts != null) {
+                tts?.stop()
+                tts?.shutdown()
+                tts = null
+                isTtsReady = false
+                isSpeaking = false
+                btnTts.setImageResource(android.R.drawable.ic_media_play)
+            }
+            
+            // Clean up overlays and view caches
+            hideOverlays()
+            listLibrary?.adapter = null
+            listChapters?.adapter = null
+            listBookmarks?.adapter = null
 
             bubbleIcon.visibility = View.VISIBLE
             windowContainer.visibility = View.GONE
@@ -2214,8 +2344,6 @@ class FloatingReaderService : Service() {
             // Restore bubble position
             layoutParams.x = foldedX
             layoutParams.y = foldedY
-            
-            isAutoScrolling = false // pause scroll
         } else {
             // Save bubble position before expanding
             foldedX = layoutParams.x
